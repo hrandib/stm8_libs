@@ -11,14 +11,17 @@
 #include "gpio.h"
 
 #define INSTRUCTION_SET_VERSION 2
+
+#ifndef WAKEDATABUFSIZE
 #define WAKEDATABUFSIZE 64
+#endif
 
 namespace Mcudrv
 {
 	namespace Wk
 	{
 
-	//			---=== Operation time counter ===---
+//	---=== Operation time counter ===---
 		class OpTime
 		{
 		private:
