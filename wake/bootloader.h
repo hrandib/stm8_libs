@@ -14,7 +14,14 @@ namespace Wk {
 
 enum McuId
 {
+	ID_STM8S003F3,
+	ID_STM8S103F3,
+	ID_STM8S105C6
+};
 
+enum
+{
+	BOOTLOADER_KEY = 0x34B8126E
 };
 
 class Bootloader : WakeData

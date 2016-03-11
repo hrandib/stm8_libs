@@ -6,7 +6,26 @@
 
 namespace Mcudrv
 {
+	namespace System
+	{
+		enum ResetReason
+		{
+			Software_WWatchdog = 1U,
+			IWatchdog = 1U << 1,
+			IllOpcode = 1U << 2,
+			Swim = 1U << 3,
+			Emc = 1U << 4
+		};
 
+		static inline void Reset()		//FIXME: Not tested yet
+		{
+			WWDG->CR = WWDG_CR_WDGA;
+		}
+		static inline ResetReason GetResetReason()
+		{
+			return (ResetReason)RST->SR;
+		}
+	}
 	namespace Itc
 	{
 		enum Priority
