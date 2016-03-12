@@ -409,8 +409,11 @@ namespace Mcudrv
 				}
 				if(cmd) {
 					switch(cmd) {
-					case C_NOP: case C_ERR: case C_ECHO:
+					case C_NOP: case C_ECHO:
 						break;
+					case C_ERR:
+						cmd = Wk::C_NOP;
+						return;
 					case C_GETINFO:
 						//Common device info
 						if (!pdata.n)	{
@@ -725,7 +728,7 @@ namespace Mcudrv
 					}
 				case NBT:					//-----> ожидание приема количества байт
 					{
-						if(data_byte >= WAKEDATABUFSIZE)	//если количество байт > bufsize,
+						if(data_byte > WAKEDATABUFSIZE)	//если количество байт > bufsize,
 						{
 							state = WAIT_FEND;
 							cmd = C_ERR;		//то ошибка
