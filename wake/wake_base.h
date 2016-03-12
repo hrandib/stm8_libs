@@ -166,16 +166,17 @@ namespace Mcudrv
 			C_ECHO,    //передать эхо
 			C_GETINFO,
 			C_SETNODEADDRESS,
-			C_SETGROUPADDRESS,
-			C_SAVESETTINGS,
+			C_GETGROUPADDRESS,
+			C_SETGROUPADDRESS = C_GETGROUPADDRESS,
 			C_GETOPTIME,
 			C_OFF,
 			C_ON,
-			C_ToggleOnOff
+			C_ToggleOnOff,
+			C_SAVESETTINGS,
 #if BOOTLOADER_EXIST
-			,C_REBOOT
+			C_REBOOT,
 #endif
-			,C_BASE_END
+			C_BASE_END
 		};
 
 		enum Err
@@ -194,15 +195,15 @@ namespace Mcudrv
 
 		enum DeviceType
 		{
-			devNull,
-			devLedDriver = 0x01,
-			devSwitch = 0x02,
-			devRgbDriver = 0x04,
-			devGenericIO = 0x08,
-			devSensor = 0x10,
-			devPowerSupply = 0x20,
+			DevNull,
+			DevLedDriver = 0x01,
+			DevSwitch = 0x02,
+			DevRgbDriver = 0x04,
+			DevGenericIO = 0x08,
+			DevSensor = 0x10,
+			DevPowerSupply = 0x20,
 //		Reserved = 0x40,
-			devCustom = 0x80
+			DevCustom = 0x80
 		};
 
 		enum AddrType
@@ -213,7 +214,7 @@ namespace Mcudrv
 
 		struct NullModule
 		{
-			enum { deviceMask = devNull, features = 0 };
+			enum { deviceMask = DevNull, features = 0 };
 			static void Init() { }
 			static void Process() { }
 			static void SaveState() { }
@@ -306,9 +307,11 @@ namespace Mcudrv
 			};
 			static volatile Packet pdata;
 			static volatile uint8_t cmd;
+			static uint8_t processedMask;		//used to check if command processed in modules
 		};
 		volatile WakeData::Packet WakeData::pdata;
 		volatile uint8_t WakeData::cmd;
+		uint8_t WakeData::processedMask;
 
 		template<typename moduleList = ModuleList<NullModule>,
 				 Uarts::BaudRate baud = 9600UL,
@@ -372,7 +375,7 @@ namespace Mcudrv
 			{
 				uint8_t taddr = pdata.buf[0];
 				return taddr == (~pdata.buf[1] & 0xFF)
-						&& ((taddr && taddr < 80) || (taddr > 111 && taddr < 128));
+						&& ((taddr && taddr < 80) || (taddr > 112 && taddr < 128));
 			}
 			#pragma inline=forced
 			static bool CheckGroupAddress()
@@ -399,138 +402,126 @@ namespace Mcudrv
 			static void Process()
 			{
 				Wdg::Iwdg::Refresh();
-				if(OpTime::GetTenMinitesFlag() && !IsActive())
-				{
+				if(OpTime::GetTenMinitesFlag() && !IsActive()) {
 					OpTime::ClearTenMinutesFlag();
-					OpTime::CountInc();			//Refresh Uptime counter every 10 mins
+					OpTime::CountInc();			//Refresh optime counter every 10 mins
 					moduleList::SaveState();		//Save to EEPROM
 				}
-				if(cmd)
-				{
-				switch(cmd)
-				{
-				case C_NOP: case C_ERR: case C_ECHO:
-					break;
-				case C_GETINFO:
-					if (!pdata.n)	//Common device info
-					{
-						pdata.buf[0] = moduleList::deviceMask;
-						pdata.buf[1] = INSTRUCTION_SET_VERSION;
-						pdata.n = 2;
-					}
-					else if(pdata.n == 1)	//Info for each logical device
-					{
-						if(pdata.buf[0] < 7)
-						{
-							const uint8_t deviceMask = 1 << pdata.buf[0];
-							if(moduleList::deviceMask & deviceMask) //device available
-							{
-								pdata.buf[0] = ERR_NO;
-								pdata.buf[1] = moduleList::GetDeviceFeatures(deviceMask);
-								pdata.n = 2;
-							}
-							else //device not available
-							{
-								pdata.buf[0] = ERR_NI;
-							}
+				if(cmd) {
+					switch(cmd) {
+					case C_NOP: case C_ERR: case C_ECHO:
+						break;
+					case C_GETINFO:
+						//Common device info
+						if (!pdata.n)	{
+							pdata.buf[0] = moduleList::deviceMask;
+							pdata.buf[1] = INSTRUCTION_SET_VERSION;
+							pdata.n = 2;
 						}
-						//else if(pdata.buf[0] == 7) //custom device
-					}
-					else
-					{
-						pdata.buf[0] = ERR_PA;
+						//Info about single logical device
+						else if(pdata.n == 1)	{
+							if(pdata.buf[0] < 7) {
+								const uint8_t deviceMask = 1 << pdata.buf[0];
+								//Device is available
+								if(moduleList::deviceMask & deviceMask) {
+									pdata.buf[0] = ERR_NO;
+									pdata.buf[1] = moduleList::GetDeviceFeatures(deviceMask);
+									pdata.n = 2;
+								}
+								//device not available
+								else {
+									pdata.buf[0] = ERR_NI;
+								}
+							}
+							//else if(pdata.buf[0] == 7) //custom device
+						}
+						else {
+							pdata.buf[0] = ERR_PA;
+							pdata.n = 1;
+						}
+						break;
+					case C_SETNODEADDRESS:
+						SetAddress(addrNode);
+						break;
+					case C_SETGROUPADDRESS:
+						SetAddress(addrGroup);
+						break;
+					case C_GETOPTIME:
+						if(!pdata.n) {
+							pdata.buf[0] = Wk::ERR_NO;
+							OpTime::Get(&pdata.buf[1]);
+							pdata.n = 4;
+						}
+						else {
+							pdata.buf[0] = Wk::ERR_PA;
+							pdata.n = 1;
+						}
+						break;
+					case C_OFF:
+						if(!pdata.n) {
+							pdata.buf[0] = Wk::ERR_NO;
+							moduleList::Off();
+						}
+						else {
+							pdata.buf[0] = Wk::ERR_PA;
+						}
 						pdata.n = 1;
 						break;
-					}
-					break;
-				case C_SETNODEADDRESS:
-					SetAddress(addrNode);
-					break;
-				case C_SETGROUPADDRESS:
-					SetAddress(addrGroup);
-					break;
-				case C_SAVESETTINGS:
-					if(!pdata.n)
-					{
-						moduleList::SaveState();
-						pdata.buf[0] = ERR_NO;
-					}
-					else pdata.buf[0] = ERR_PA;
-					pdata.n = 1;
-					break;
-				case C_GETOPTIME:
-					if(!pdata.n)
-					{
-						pdata.buf[0] = Wk::ERR_NO;
-						OpTime::Get(&pdata.buf[1]);
-						pdata.n = 4;
-					}
-					else
-					{
-						pdata.buf[0] = Wk::ERR_PA;
+					case C_ON:
+						if(!pdata.n) {
+							pdata.buf[0] = Wk::ERR_NO;
+							moduleList::On();
+						}
+						else {
+							pdata.buf[0] = Wk::ERR_PA;
+						}
 						pdata.n = 1;
-					}
-					break;
-				case C_OFF:
-					if (!pdata.n)
-					{
-						pdata.buf[0] = Wk::ERR_NO;
-						moduleList::Off();
-					}
-					else
-					{
-						pdata.buf[0] = Wk::ERR_PA;
-					}
-					pdata.n = 1;
-					break;
-				case C_ON:
-					if (!pdata.n)
-					{
-						pdata.buf[0] = Wk::ERR_NO;
-						moduleList::On();
-					}
-					else
-					{
-						pdata.buf[0] = Wk::ERR_PA;
-					}
-					pdata.n = 1;
-					break;
-				case C_ToggleOnOff:
-					if(!pdata.n)
-					{
-						pdata.buf[0] = Wk::ERR_NO;
-						moduleList::ToggleOnOff();
-					}
-					else
-					{
-						pdata.buf[0] = Wk::ERR_PA;
-					}
-					pdata.n = 1;
-					break;
+						break;
+					case C_ToggleOnOff:
+						if(!pdata.n) {
+							pdata.buf[0] = Wk::ERR_NO;
+							moduleList::ToggleOnOff();
+						}
+						else {
+							pdata.buf[0] = Wk::ERR_PA;
+						}
+						pdata.n = 1;
+						break;
+					case C_SAVESETTINGS:
+						if(!pdata.n) {
+							moduleList::SaveState();
+							pdata.buf[0] = ERR_NO;
+						}
+						else pdata.buf[0] = ERR_PA;
+						pdata.n = 1;
+						break;
 #if BOOTLOADER_EXIST
-				case C_REBOOT:
-					if(pdata.n == 4 && *(uint32_t*)pdata.buf == REBOOT_KEY)
-					{
-						pdata.buf[0] = Wk::ERR_NO;
-						moduleList::ToggleOnOff();
-					}
-					else
-					{
-						pdata.buf[0] = Wk::ERR_PA;
-					}
-					pdata.n = 1;
-					break;
+					case C_REBOOT:
+						if(pdata.n == 4 && *(uint32_t*)pdata.buf == REBOOT_KEY) {
+							System::Reset();
+						}
+						else {
+							pdata.buf[0] = Wk::ERR_PA;
+						}
+						pdata.n = 1;
+						break;
 #else
-				case C_REBOOT:
-					pdata.buf[0] = Wk::ERR_NI;
-					pdata.n = 1;
-					break;
+					case C_REBOOT:
+						pdata.buf[0] = Wk::ERR_NI;
+						pdata.n = 1;
+						break;
 #endif
-				default: moduleList::Process();
-				}
+					default:
+						moduleList::Process();
+						//Check if command not processed in modules
+						if(processedMask == moduleList::deviceMask) {
+							processedMask = 0;
+							pdata.buf[0] = Wk::ERR_NI;
+							pdata.n = 1;
+						}
+					} //Switch
 					uint8_t tempAddr = pdata.addr;
-					if(tempAddr && cmd == C_SETNODEADDRESS || tempAddr == nodeAddr_nv)
-					{
+					if(tempAddr == nodeAddr_nv || tempAddr && cmd == C_SETNODEADDRESS) {
 						Send();
 					}
 					cmd = Wk::C_NOP;

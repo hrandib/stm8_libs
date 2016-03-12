@@ -138,7 +138,7 @@ namespace Mcudrv
 	public:
 		enum
 		{
-			deviceMask = devLedDriver,
+			deviceMask = DevLedDriver,
 			features = Features::TwoChannels | Features::FanControl << 1UL
 		};
 		#pragma inline=forced
@@ -168,161 +168,138 @@ namespace Mcudrv
 		#pragma inline=forced
 		static void Process()
 		{
-			switch(cmd)
-			{
-				case C_GetState:
-				{
-					if(!pdata.n)	//Common query - all channels brightness
-					{
+			switch(cmd) {
+			case C_GetState:
+				//Common query - all channels brightness
+				if(!pdata.n) {
+					pdata.buf[0] = ERR_NO;
+					pdata.buf[1] = GetBrightness(Ch1);
+					if(Ch2) {
+						pdata.buf[2] = GetBrightness(Ch2);
+						pdata.n = 3;
+					}
+					else {
+						pdata.n = 2;
+					}
+				}
+				else if(pdata.n == 1) {
+					// Ch1 brightness
+					if(!pdata.buf[0]) {
 						pdata.buf[0] = ERR_NO;
 						pdata.buf[1] = GetBrightness(Ch1);
-						if(Ch2)
-						{
-							pdata.buf[2] = GetBrightness(Ch2);
-							pdata.n = 3;
-						}
-						else pdata.n = 2;
-					}
-					else if(pdata.n == 1)
-					{
-						if(!pdata.buf[0]) // Ch1 brightness
-						{
-							pdata.buf[0] = ERR_NO;
-							pdata.buf[1] = GetBrightness(Ch1);
-							pdata.n = 2;
-						}
-						else if(Ch2 && pdata.buf[0] == 0x80) //Ch2 brightness
-						{
-							pdata.buf[0] = ERR_NO;
-							pdata.buf[1] = GetBrightness(Ch2);
-							pdata.n = 2;
-						}
-						else if(Features::FanControl && pdata.buf[0] == 0x01) //fan speed
-						{
-							pdata.buf[0] = ERR_NO;
-							pdata.buf[1] = GetFanSpeed();
-							pdata.n = 2;
-						}
-						else
-						{
-							pdata.buf[0] = ERR_NI;
-							pdata.n = 1;
-						}
-					}
-					else // param error
-					{
-						pdata.buf[0] = ERR_PA;
-						pdata.n = 1;
-					}
-				}
-					break;
-				case C_SetBright:
-				{
-					if(pdata.n == 1)
-					{
-						if(!(pdata.buf[0] & 0x80))
-						{
-							SetBrightness(pdata.buf[0], Ch1);
-						}
-						else if(Ch2)
-						{
-							SetBrightness(pdata.buf[0] & 0x7F, Ch2);
-						}
-						else
-						{
-							pdata.buf[0] = ERR_NI;
-							break;
-						}
-						pdata.buf[0] = ERR_NO;
-					}
-					else
-					{
-						pdata.buf[0] = ERR_PA;
-						pdata.n = 1;
-					}
-				}
-					break;
-				case C_IncBright:
-				{
-					if(pdata.n == 1)
-					{
-						if(!(pdata.buf[0] & 0x80)) //1st channel selected
-						{
-							pdata.buf[1] = IncBrightness(pdata.buf[0], Ch1);
-						}
-						else if(Ch2)
-						{
-							pdata.buf[1] = IncBrightness(pdata.buf[0] & 0x7F, Ch2);
-						}
-						else
-						{
-							pdata.buf[0] = ERR_NI;
-							break;
-						}
-						pdata.buf[0] = ERR_NO;
 						pdata.n = 2;
 					}
-					else
-					{
-						pdata.buf[0] = ERR_PA;
-						pdata.n = 1;
-					}
-				}
-					break;
-				case C_DecBright:
-				{
-					if(pdata.n == 1)
-					{
-						if(!(pdata.buf[0] & 0x80)) //1st channel selected
-						{
-							pdata.buf[1] = DecBrightness(pdata.buf[0], Ch1);
-						}
-						else if(Ch2)
-						{
-							pdata.buf[1] = DecBrightness(pdata.buf[0] & 0x7F, Ch2);
-						}
-						else
-						{
-							pdata.buf[0] = ERR_NI;
-							break;
-						}
+					//Ch2 brightness
+					else if(Ch2 && pdata.buf[0] == 0x80) {
 						pdata.buf[0] = ERR_NO;
+						pdata.buf[1] = GetBrightness(Ch2);
 						pdata.n = 2;
 					}
-					else
-					{
-						pdata.buf[0] = ERR_PA;
+					//fan speed
+					else if(Features::FanControl && pdata.buf[0] == 0x01) {
+						pdata.buf[0] = ERR_NO;
+						pdata.buf[1] = GetFanSpeed();
+						pdata.n = 2;
+					}
+					else {
+						pdata.buf[0] = ERR_NI;
 						pdata.n = 1;
 					}
 				}
-					break;
-				case C_SetFan:
-				{
-					if(pdata.n == 1)
-					{
-						if(Features::FanControl)
-						{
-							SetFanSpeed(pdata.buf[0]);
-							pdata.buf[0] = ERR_NO;
-							pdata.buf[1] = GetFanSpeed();
-							pdata.n = 2;
-						}
-						else pdata.buf[0] = ERR_NI;
-					}
-					else
-					{
-						pdata.buf[0] = ERR_PA;
-						pdata.n = 1;
-					}
+				//param error
+				else {
+					pdata.buf[0] = ERR_PA;
+					pdata.n = 1;
 				}
-					break;
-				case C_SetGfgFanAuto:
-				{
-					if(pdata.n == 3) pdata.buf[0] = ERR_NI;
-					else pdata.buf[0] = ERR_PA;
+				break;
+			case C_SetBright:
+				if(pdata.n == 1) {
+					if(!(pdata.buf[0] & 0x80)) {
+						SetBrightness(pdata.buf[0], Ch1);
+					}
+					else if(Ch2) {
+						SetBrightness(pdata.buf[0] & 0x7F, Ch2);
+					}
+					else {
+						pdata.buf[0] = ERR_NI;
+						break;
+					}
+					pdata.buf[0] = ERR_NO;
 				}
-					break;
-			}
+				else {
+					pdata.buf[0] = ERR_PA;
+					pdata.n = 1;
+				}
+				break;
+			case C_IncBright:
+				if(pdata.n == 1) {
+					//1st channel selected
+					if(!(pdata.buf[0] & 0x80)) {
+						pdata.buf[1] = IncBrightness(pdata.buf[0], Ch1);
+					}
+					else if(Ch2) {
+						pdata.buf[1] = IncBrightness(pdata.buf[0] & 0x7F, Ch2);
+					}
+					else {
+						pdata.buf[0] = ERR_NI;
+						break;
+					}
+					pdata.buf[0] = ERR_NO;
+					pdata.n = 2;
+				}
+				else {
+					pdata.buf[0] = ERR_PA;
+					pdata.n = 1;
+				}
+			break;
+			case C_DecBright:
+				if(pdata.n == 1) {
+					//1st channel selected
+					if(!(pdata.buf[0] & 0x80)) {
+						pdata.buf[1] = DecBrightness(pdata.buf[0], Ch1);
+					}
+					else if(Ch2) {
+						pdata.buf[1] = DecBrightness(pdata.buf[0] & 0x7F, Ch2);
+					}
+					else {
+						pdata.buf[0] = ERR_NI;
+						break;
+					}
+					pdata.buf[0] = ERR_NO;
+					pdata.n = 2;
+				}
+				else {
+					pdata.buf[0] = ERR_PA;
+					pdata.n = 1;
+				}
+			break;
+			case C_SetFan:
+				if(pdata.n == 1) {
+					if(Features::FanControl) {
+						SetFanSpeed(pdata.buf[0]);
+						pdata.buf[0] = ERR_NO;
+						pdata.buf[1] = GetFanSpeed();
+						pdata.n = 2;
+					}
+					else pdata.buf[0] = ERR_NI;
+				}
+				else {
+					pdata.buf[0] = ERR_PA;
+					pdata.n = 1;
+				}
+				break;
+			case C_SetGfgFanAuto:
+				if(pdata.n == 3) {
+					pdata.buf[0] = ERR_NI;
+				}
+				else {
+					pdata.buf[0] = ERR_PA;
+				}
+				break;
+			default:
+				//if command not processed by this module
+				processedMask |= deviceMask;
+			}//switch
 		}
 
 		#pragma inline=forced

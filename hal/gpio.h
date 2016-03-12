@@ -337,13 +337,14 @@ namespace Mcudrv
 	PINSDEF(I,i);
 	typedef TPin<GpioNull, 0x0> Nullpin;
 
-#define	P0	0x01
-#define	P1	0x02
-#define	P2	0x04
-#define	P3	0x08
-#define	P4	0x10
-#define	P5	0x20
-#define	P6	0x40
-#define	P7	0x80
-
+	enum {
+		P0 = 0x01,
+		P1 = 0x02,
+		P2 = 0x04,
+		P3 = 0x08,
+		P4 = 0x10,
+		P5 = 0x20,
+		P6 = 0x40,
+		P7 = 0x80
+	};
 } //Mcudrv
