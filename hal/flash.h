@@ -16,7 +16,7 @@ namespace Mcudrv
 		template<MemType>		//For Flash
 		void inline Lock()
 		{
-			FLASH->IAPSR &= ~FLASH_IAPSR_PUL;
+			FLASH->IAPSR = ~FLASH_IAPSR_PUL;
 		}
 
 		#pragma inline=forced
@@ -27,12 +27,14 @@ namespace Mcudrv
 			FLASH->PUKR = 0xAE;
 		}
 		
+		#pragma inline=forced
 		template<>
 		void inline Lock<Eeprom>()	
 		{
-			FLASH->IAPSR &= ~FLASH_IAPSR_DUL;
+			FLASH->IAPSR = ~FLASH_IAPSR_DUL;
 		}
 
+		#pragma inline=forced
 		template<>
 		void inline Unlock<Eeprom>()	
 		{
@@ -64,6 +66,13 @@ namespace Mcudrv
 		{
 			FLASH->CR2 = FLASH_CR2_WPRG;
 			FLASH->NCR2 = ~FLASH_NCR2_NWPRG;
+		}
+
+		#pragma inline=forced
+		void SetBlockProgramming()
+		{
+			FLASH->CR2 = FLASH_CR2_PRG;
+			FLASH->NCR2 = ~FLASH_NCR2_NPRG;
 		}
 
 	}

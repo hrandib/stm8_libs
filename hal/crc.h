@@ -11,31 +11,38 @@ namespace Crc {
 class Crc8
 {
 private:
+	typedef Crc8 Self;
 	static const uint8_t table[256];
-	uint8_t crc;
+	uint8_t crc_;
 public:
-	Crc8(uint8_t init = 0) : crc(init)
+	Crc8(uint8_t init = 0) : crc_(init)
 	{	}
-	void Reset(uint8_t init = 0)
+	Self& Reset(uint8_t init = 0)
 	{
-		crc = init;
+		crc_ = init;
+		return *this;
+	}
+	Self& Eval(uint8_t value)
+	{
+		operator()(value);
+		return *this;
 	}
 	void operator()(uint8_t value)
 	{
-		crc = table[crc ^ value];
+		crc_ = table[crc_ ^ value];
 	}
-	uint8_t operator()(const uint8_t* buf, uint8_t len, uint8_t initValue = 0)
+	operator()(const uint8_t* buf, uint8_t len, uint8_t initValue = 0)
 	{
-		crc = initValue;
+		crc_ = initValue;
 		for(uint8_t i = 0; i < len; ++i)
 		{
-			crc = table[crc ^ buf[i]];
+			crc_ = table[crc_ ^ buf[i]];
 		}
-		return crc;
+		return crc_;
 	}
 	uint8_t Get()
 	{
-		return crc;
+		return crc_;
 	}
 };
 

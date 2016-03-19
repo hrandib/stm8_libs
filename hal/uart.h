@@ -170,8 +170,12 @@ namespace Uarts
 		#pragma inline=forced
 		static void ClearEvent(const Events event)
 		{
-			if(event == EvTxComplete) Regs()->SR = ~event;
-			else if(event == EvRxne) uint8_t dummy = Uart::Regs()->DR;
+			if(event & EvTxComplete) {
+				Regs()->SR = ~event;
+			}
+			if(event & EvRxne) {
+				uint8_t dummy = Uart::Regs()->DR;
+			}
 		}
 
 		#pragma inline=forced
@@ -220,7 +224,8 @@ namespace Uarts
 		}
 		static uint8_t Getch()
 		{
-			while (!IsEvent(EvRxne));
+			while(!IsEvent(EvRxne))
+				;
 			uint8_t ch = Regs()->DR;
 #ifdef UARTECHO
 			Regs()->DR = ch;

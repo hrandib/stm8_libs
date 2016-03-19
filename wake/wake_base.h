@@ -190,7 +190,7 @@ namespace Mcudrv
 			ERR_NR,	//no replay
 			ERR_NC,	//no carrier
 			ERR_ADDRFMT,	//new address is wrong
-			ERR_EEPROMUNLOCK //EEPROM hasn't unlocked
+			ERR_EEPROMUNLOCK //EEPROM wasn't unlocked
 		};
 
 		enum DeviceType
@@ -297,7 +297,7 @@ namespace Mcudrv
 
 		class WakeData
 		{
-		protected:
+		public:
 			struct Packet
 			{
 				uint8_t addr;
@@ -305,6 +305,7 @@ namespace Mcudrv
 				uint8_t n;
 				uint8_t buf[WAKEDATABUFSIZE];
 			};
+		protected:
 			static volatile Packet pdata;
 			static volatile uint8_t cmd;
 			static uint8_t processedMask;		//used to check if command processed in modules
@@ -561,7 +562,6 @@ namespace Mcudrv
 				using namespace Uarts;
 				if(Uart::IsEvent(EvTxComplete))
 				{
-
 					Uart::ClearEvent(EvTxComplete);
 					Uart::ClearEvent(EvRxne);
 					Uart::EnableInterrupt(IrqRxne);
@@ -645,7 +645,6 @@ namespace Mcudrv
 #endif
 			__interrupt static void RxISR()
 			{
-
 				using namespace Uarts;
 				bool error = Uart::IsEvent(static_cast<Events>(EvParityErr | EvFrameErr | EvNoiseErr | EvOverrunErr)); //чтение флагов ошибок
 				uint8_t data_byte = Uart::Regs()->DR;              //чтение данных
