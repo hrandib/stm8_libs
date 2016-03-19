@@ -96,7 +96,7 @@ private:
 		C_Write
 	};
 	static WakeData::Packet packet_;
-	static Crc::Crc8 crc_;
+	static Crc::NoLUT::Crc8<Crc::NoLUT::Crc8_Algo1> crc_;
 	static uint8_t prevByte_;
 	static State state_;				//Current tranfer mode
 	static uint8_t ptr_;				//data pointer in Rx buffer
@@ -322,7 +322,7 @@ public:
 template<McuId Device, Uarts::BaudRate baud, typename DriverEnable>
 WakeData::Packet Bootloader<Device, baud, DriverEnable>::packet_;
 template<McuId Device, Uarts::BaudRate baud, typename DriverEnable>
-Crc::Crc8 Bootloader<Device, baud, DriverEnable>::crc_;
+Crc::NoLUT::Crc8<Crc::NoLUT::Crc8_Algo1> Bootloader<Device, baud, DriverEnable>::crc_;
 template<McuId Device, Uarts::BaudRate baud, typename DriverEnable>
 uint8_t Bootloader<Device, baud, DriverEnable>::prevByte_;
 template<McuId Device, Uarts::BaudRate baud, typename DriverEnable>

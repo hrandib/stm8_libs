@@ -46,6 +46,74 @@ public:
 	}
 };
 
+namespace NoLUT {
+
+struct Crc8_Algo1
+{
+#pragma inline=forced
+	static void Evaluate(uint8_t& crc, uint8_t inByte)
+	{
+		for(uint8_t i = 8; i; --i) {
+			uint8_t mix = (crc ^ inByte) & 0x01;
+			crc >>= 1;
+			if(mix) {
+				crc ^= 0x8C;
+			}
+			inByte >>= 1;
+		}
+	}
+};
+struct Crc8_Algo2
+{
+#pragma inline=forced
+	static void Evaluate(uint8_t& crc, uint8_t inByte)
+	{
+		for(char i = 0; i < 8; inByte = inByte >> 1, ++i)
+			if((inByte ^ crc) & 1) crc = ((crc ^ 0x18) >> 1) | 0x80;
+			else crc = (crc >> 1) & ~0x80;
+	}
+};
+
+template<typename Algo = Crc8_Algo1>
+class Crc8
+{
+private:
+	typedef Crc8 Self;
+	uint8_t crc_;
+public:
+	Crc8(uint8_t init = 0) : crc_(init)
+	{	}
+	Self& Reset(uint8_t init = 0)
+	{
+		crc_ = init;
+		return *this;
+	}
+	Self& Eval(uint8_t value)
+	{
+		operator()(value);
+		return *this;
+	}
+	void operator()(uint8_t value)
+	{
+		Algo::Evaluate(crc_, value);
+	}
+	uint8_t operator()(const uint8_t* buf, uint8_t len, uint8_t initValue = 0)
+	{
+		crc_ = initValue;
+		for(uint8_t i = 0; i < len; ++i)
+		{
+			Algo::Evaluate(crc_, buf[i]);
+		}
+		return crc_;
+	}
+	uint8_t Get()
+	{
+		return crc_;
+	}
+};
+
+}//NoLUT
+
 //direct compute #1
 /*	uint8_t CrcN1(const uint8_t *addr, uint8_t len) {
 	  uint8_t crc = 0;
