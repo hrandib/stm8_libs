@@ -87,6 +87,7 @@ private:
 	enum { SingleWireMode = (Uart::BaseAddr == UART1_BaseAddress ? Uarts::SingleWireMode : 0) };
 	enum { BlockSize = (Device >= ID_STM8S105C6 ? 128 : 64) };
 	enum InstructionSet {
+		C_Err = 1,
 		C_Echo = 2,
 		C_GetInfo = 3,
 		C_BootStart = 12,
@@ -94,12 +95,12 @@ private:
 		C_Read,
 		C_Write
 	};
+	static WakeData::Packet packet_;
+	static Crc::Crc8 crc_;
 	static uint8_t prevByte_;
 	static State state_;				//Current tranfer mode
 	static uint8_t ptr_;				//data pointer in Rx buffer
-	static Crc::Crc8 crc_;
-	static Cmd cmd_;
-	static WakeData::Packet packet_;
+	static uint8_t cmd_;
 
 	__ramfunc
 	static void Write()
@@ -281,30 +282,55 @@ public:
 	FORCEINLINE
 	static void Init()
 	{
+		using namespace Uarts;
 		//Single Wire mode is default for UART1
-			Uart::template Init<Cfg(Uarts::DefaultCfg | (Cfg)SingleWireMode, 9600UL>();
-			DriverEnable::Clear();
-			DriverEnable::template SetConfig<GpioBase::Out_PushPull_fast>();
+		Uart::template Init<Cfg(Uarts::DefaultCfg | (Cfg)SingleWireMode), 9600UL>();
+		DriverEnable::Clear();
+		DriverEnable::template SetConfig<GpioBase::Out_PushPull_fast>();
 	}
 
 	FORCEINLINE
 	static void Process()
 	{
-		while(true)
-		{
+		while(true) {
 			Receive();
+			if(cmd_ == C_Err)
+				continue;
 			switch (cmd_) {
-			case C:
-
+			case C_Echo:
+				break;
+			case C_BootStart:
+				break;
+			case C_SetPosition:
+				break;
+			case C_Read:
+				break;
+			case C_Write:
 				break;
 			default:
-				break;
+				packet_.buf[0] = ERR_NI;
+				packet_.cmd = C_Err;
+				packet_.n = 1;
 			}
+			Transmit();
 		}
-		Write();
-		Go();
+//		Write();
+//		Go();
 	}
 };
+
+template<McuId Device, Uarts::BaudRate baud, typename DriverEnable>
+WakeData::Packet Bootloader<Device, baud, DriverEnable>::packet_;
+template<McuId Device, Uarts::BaudRate baud, typename DriverEnable>
+Crc::Crc8 Bootloader<Device, baud, DriverEnable>::crc_;
+template<McuId Device, Uarts::BaudRate baud, typename DriverEnable>
+uint8_t Bootloader<Device, baud, DriverEnable>::prevByte_;
+template<McuId Device, Uarts::BaudRate baud, typename DriverEnable>
+State Bootloader<Device, baud, DriverEnable>::state_;
+template<McuId Device, Uarts::BaudRate baud, typename DriverEnable>
+uint8_t Bootloader<Device, baud, DriverEnable>::ptr_;
+template<McuId Device, Uarts::BaudRate baud, typename DriverEnable>
+uint8_t Bootloader<Device, baud, DriverEnable>::cmd_;
 
 
 }//Wk

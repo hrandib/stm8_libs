@@ -31,7 +31,7 @@ public:
 	{
 		crc_ = table[crc_ ^ value];
 	}
-	operator()(const uint8_t* buf, uint8_t len, uint8_t initValue = 0)
+	uint8_t operator()(const uint8_t* buf, uint8_t len, uint8_t initValue = 0)
 	{
 		crc_ = initValue;
 		for(uint8_t i = 0; i < len; ++i)
