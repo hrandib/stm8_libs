@@ -7,8 +7,9 @@
 #define WAKEDATABUFSIZE 128
 #include "wake_base.h"
 #include "flash.h"
+#include <string.h>
 
-#define UBC_END 0x8400
+#define UBC_END 0x8400UL
 #define UBC_END_ASM "$8400"
 
 //#define TOSTRING(s) str(s)
@@ -69,42 +70,146 @@ enum McuId
 {
 	ID_STM8S003F3,
 	ID_STM8S103F3,
-	ID_STM8S105C6 = 0x10
+	ID_STM8S105C6 = 0x08	//Devices with 128 flash block size start from 0x08
+};
+
+template<McuId Id>
+struct BootTraits;
+template<>
+struct BootTraits<ID_STM8S003F3>
+{
+	enum {
+		FlashStart = UBC_END,
+		FlashEnd = 0xA000UL,
+		FlashSize = FlashEnd - UBC_END,
+		EepromStart = 0x4000UL,
+//	EepromEnd = 0x4080UL,
+		EepromEnd = 0x4280UL,		//not documented, but exist
+		EepromSize = EepromEnd - EepromStart,
+	};
+};
+template<>
+struct BootTraits<ID_STM8S103F3>
+{
+	enum {
+		FlashStart = UBC_END,
+		FlashEnd = 0xA000UL,
+		FlashSize = FlashEnd - UBC_END,
+		EepromStart = 0x4000UL,
+		EepromEnd = 0x4280UL,
+		EepromSize = EepromEnd - EepromStart,
+	};
+};
+template<>
+struct BootTraits<ID_STM8S105C6>
+{
+	enum {
+		FlashStart = UBC_END,
+		FlashEnd = 0x10000UL,
+		FlashSize = FlashEnd - UBC_END,
+		EepromStart = 0x4000UL,
+		EepromEnd = 0x4400UL,
+		EepromSize = EepromEnd - EepromStart,
+	};
 };
 
 enum
 {
-	BOOTLOADER_KEY = 0x34B8126E,	// Host should use big endian format
-	WakeAddress = 112
+	BOOTLOADER_KEY = 0x34B8126EUL,	// Host should use big endian format
+	WakeAddress = 112,
+	BOOTLOADER_VER = 0x01
 };
 
-template<McuId Device, Uarts::BaudRate baud = 9600UL,
+template<McuId DeviceID = ID_STM8S003F3, Uarts::BaudRate baud = 9600UL,
 				 typename DriverEnable = Pd6>
 class Bootloader
 {
 private:
 	typedef Uarts::Uart Uart;
-	enum { SingleWireMode = (Uart::BaseAddr == UART1_BaseAddress ? Uarts::SingleWireMode : 0) };
-	enum { BlockSize = (Device >= ID_STM8S105C6 ? 128 : 64) };
+	typedef BootTraits<DeviceID> Traits;
+	enum {
+		BlockSize = DeviceID >= ID_STM8S105C6 ? 128 : 64,
+		SingleWireMode = Uart::BaseAddr == UART1_BaseAddress ? Uarts::SingleWireMode : 0,
+	};
 	enum InstructionSet {
 		C_Err = 1,
 		C_Echo = 2,
 		C_GetInfo = 3,
-		C_BootStart = 12,
-		C_SetPosition,
+		C_SetPosition = 12,
 		C_Read,
-		C_Write
+		C_Write,
+		C_Go
 	};
 	static WakeData::Packet packet_;
-	static Crc::NoLUT::Crc8<Crc::NoLUT::Crc8_Algo1> crc_;
+	static Crc::Crc8_NoLUT crc_;
 	static uint8_t prevByte_;
 	static State state_;				//Current tranfer mode
 	static uint8_t ptr_;				//data pointer in Rx buffer
 	static uint8_t cmd_;
+	static uint8_t* memptr_;
 
-	__ramfunc
-	static void Write()
+//	__ramfunc
+	static void WriteFlash()
 	{ }
+	static void WriteEeprom()
+	{ }
+	static void Read()
+	{
+		enum { BUF_OFFSET = 3 };
+		if(packet_.n != 1 || packet_.buf[0] > 128) {
+			packet_.buf[0] = ERR_PA;
+			packet_.n = 1;
+			return;
+		}
+		uint8_t length = packet_.buf[0];
+		const uint16_t memEnd = (uint16_t)memptr_ & 0x8000 ? Traits::FlashEnd : Traits::EepromEnd;
+		if(memEnd < (uint16_t)memptr_ + length) {
+			length = memEnd - (uint16_t)memptr_;
+		}
+		for(uint8_t i = 0; i < length; ++i) {
+			packet_.buf[i + BUF_OFFSET] = *memptr_++;
+		}
+		packet_.buf[0] = ERR_NO;
+		*(uint16_t*)&packet_.buf[1] = (uint16_t)memptr_ - (memEnd == Traits::FlashEnd ? Traits::FlashStart : Traits::EepromStart);
+		packet_.n = length + BUF_OFFSET;
+	}
+
+	static void SetPosition()
+	{
+		//packet size is valid
+		if(packet_.n != 2) {
+			packet_.buf[0] = ERR_PA;
+			packet_.n = 1;
+			return;
+		}
+		bool eepromFlag = packet_.buf[0] & 0x80;
+		//set in flash
+		if(!eepromFlag) {
+			uint16_t addr = *(uint16_t*)packet_.buf + Traits::FlashStart;
+			//address is valid
+			if(addr < Traits::FlashEnd) {
+				memptr_ = (uint8_t*)addr;
+				packet_.buf[0] = ERR_NO;
+				*(uint16_t*)&packet_.buf[1] = addr;
+				packet_.n = 3;
+				return;
+			}
+		}
+		//set in eeprom
+		else {
+			uint16_t addr = (*(uint16_t*)packet_.buf & ~0x8000U) + Traits::EepromStart;
+			//address is valid
+			if(addr < Traits::EepromEnd) {
+				memptr_ = (uint8_t*)addr;
+				packet_.buf[0] = ERR_NO;
+				*(uint16_t*)&packet_.buf[1] = addr;
+				packet_.n = 3;
+				return;
+			}
+		}
+		packet_.buf[0] = ERR_ADDRFMT;
+		packet_.n = 1;
+	}
 
 	FORCEINLINE
 	static void Deinit()
@@ -267,10 +372,30 @@ private:
 		}
 	}
 
+	static void GetInfo()
+	{
+		//check if key valid
+		if(BOOTLOADER_KEY == *(uint32_t*)packet_.buf) {
+		//set position at application flash start
+			memptr_ = (uint8_t*)UBC_END;
+		//generate response
+			packet_.buf[0] = ERR_NO;
+			packet_.buf[1] = DeviceID << 4 | BOOTLOADER_VER;
+			packet_.buf[2] = (Traits::FlashStart - 0x8000) / 64;
+			packet_.n = 3;
+		}
+		//key not valid
+		else {
+			packet_.buf[0] = ERR_PA;
+			packet_.n = 1;
+		}
+	}
+
 public:
 	static void Go()
 	{
 		Deinit();
+		//TODO: Need RAM cleanup
 		//reset stack pointer (lower byte - because compiler decreases SP with some bytes)
 		asm("LDW X,  SP ");
 		asm("LD  A,  $FF");
@@ -294,18 +419,29 @@ public:
 	{
 		while(true) {
 			Receive();
-			if(cmd_ == C_Err)
+			if(cmd_ == C_Err) {
+				cmd_ = C_NOP;
 				continue;
+			}
 			switch (cmd_) {
+			case C_NOP:
+				continue;
 			case C_Echo:
 				break;
-			case C_BootStart:
+			case C_GetInfo:
+				GetInfo();
 				break;
 			case C_SetPosition:
+				SetPosition();
 				break;
 			case C_Read:
+				Read();
 				break;
 			case C_Write:
+				WriteFlash();
+				break;
+			case C_Go:
+				Go();
 				break;
 			default:
 				packet_.buf[0] = ERR_NI;
@@ -314,23 +450,23 @@ public:
 			}
 			Transmit();
 		}
-//		Write();
-//		Go();
 	}
 };
 
-template<McuId Device, Uarts::BaudRate baud, typename DriverEnable>
-WakeData::Packet Bootloader<Device, baud, DriverEnable>::packet_;
-template<McuId Device, Uarts::BaudRate baud, typename DriverEnable>
-Crc::NoLUT::Crc8<Crc::NoLUT::Crc8_Algo1> Bootloader<Device, baud, DriverEnable>::crc_;
-template<McuId Device, Uarts::BaudRate baud, typename DriverEnable>
-uint8_t Bootloader<Device, baud, DriverEnable>::prevByte_;
-template<McuId Device, Uarts::BaudRate baud, typename DriverEnable>
-State Bootloader<Device, baud, DriverEnable>::state_;
-template<McuId Device, Uarts::BaudRate baud, typename DriverEnable>
-uint8_t Bootloader<Device, baud, DriverEnable>::ptr_;
-template<McuId Device, Uarts::BaudRate baud, typename DriverEnable>
-uint8_t Bootloader<Device, baud, DriverEnable>::cmd_;
+template<McuId DeviceID, Uarts::BaudRate baud, typename DriverEnable>
+WakeData::Packet Bootloader<DeviceID, baud, DriverEnable>::packet_;
+template<McuId DeviceID, Uarts::BaudRate baud, typename DriverEnable>
+Crc::Crc8_NoLUT Bootloader<DeviceID, baud, DriverEnable>::crc_;
+template<McuId DeviceID, Uarts::BaudRate baud, typename DriverEnable>
+uint8_t Bootloader<DeviceID, baud, DriverEnable>::prevByte_;
+template<McuId DeviceID, Uarts::BaudRate baud, typename DriverEnable>
+State Bootloader<DeviceID, baud, DriverEnable>::state_;
+template<McuId DeviceID, Uarts::BaudRate baud, typename DriverEnable>
+uint8_t Bootloader<DeviceID, baud, DriverEnable>::ptr_;
+template<McuId DeviceID, Uarts::BaudRate baud, typename DriverEnable>
+uint8_t Bootloader<DeviceID, baud, DriverEnable>::cmd_;
+template<McuId DeviceID, Uarts::BaudRate baud, typename DriverEnable>
+uint8_t* Bootloader<DeviceID, baud, DriverEnable>::memptr_;
 
 
 }//Wk

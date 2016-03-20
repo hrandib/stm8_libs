@@ -69,7 +69,9 @@ struct Crc8_Algo2
 	static void Evaluate(uint8_t& crc, uint8_t inByte)
 	{
 		for(char i = 0; i < 8; inByte = inByte >> 1, ++i)
-			if((inByte ^ crc) & 1) crc = ((crc ^ 0x18) >> 1) | 0x80;
+			if((inByte ^ crc) & 1) {
+				crc = ((crc ^ 0x18) >> 1) | 0x80;
+			}
 			else crc = (crc >> 1) & ~0x80;
 	}
 };
@@ -114,6 +116,11 @@ public:
 
 }//NoLUT
 
+typedef NoLUT::Crc8<NoLUT::Crc8_Algo1> Crc8_NoLUT;
+
+}//Crc
+}//Mcudrv
+
 //direct compute #1
 /*	uint8_t CrcN1(const uint8_t *addr, uint8_t len) {
 	  uint8_t crc = 0;
@@ -143,8 +150,7 @@ uint8_t CrcN2(const uint8_t* buf, uint32_t len)
 }
 */
 
-}//Crc
-}//Mcudrv
+
 
 #endif // CRC_H
 
