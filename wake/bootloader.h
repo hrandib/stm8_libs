@@ -130,6 +130,14 @@ private:
 	enum {
 		BlockSize = DeviceID >= ID_STM8S105C6 ? 128 : 64,
 		SingleWireMode = Uart::BaseAddr == UART1_BaseAddress ? Uarts::SingleWireMode : 0,
+		BLOCK_BYTES = BlockSize,
+		FLASH_START = Traits::FlashStart,
+		EEPROM_START = Traits::EepromStart,
+		BLOCK_SIZE = BlockSize
+	};
+	enum FLASH_MemType {
+		MEMTYPE_PROG,
+		MEMTYPE_DATA
 	};
 	enum InstructionSet {
 		C_Err = 1,
@@ -144,15 +152,99 @@ private:
 	static Crc::Crc8_NoLUT crc_;
 	static uint8_t prevByte_;
 	static State state_;				//Current tranfer mode
-	static uint8_t ptr_;				//data pointer in Rx buffer
+	static uint8_t rxBufPtr_;				//data pointer in Rx buffer
 	static uint8_t cmd_;
-	static uint8_t* memptr_;
+	static uint8_t* memPtr_;
+//	static FLASH_MemType memType;
 
-//	__ramfunc
+	__ramfunc
+	static void WriteFlashBlock(u8** data)
+	{
+		/* Standard programming mode */
+		FLASH->CR2 |= (u8)0x01;
+		FLASH->NCR2 &= (u8)~0x01;
+
+		/* Copy data bytes from RAM to FLASH memory */
+		for(u16 Count = 0; Count < BLOCK_SIZE; ++Count) {
+			*memPtr_++ = *((*data)++);
+		}
+#if defined(STM8S105)
+		if (MemType == FLASH_MEMTYPE_DATA)
+		{
+			u16 timeout = (u16)0x6000;
+			/* Waiting until High voltage flag is cleared*/
+			while ((FLASH->IAPSR & 0x40) != 0x00 || (timeout == 0x00))
+			{
+				timeout--;
+			}
+		}
+#endif /* STM8S105 */
+	}
+
 	static void WriteFlash()
-	{ }
-	static void WriteEeprom()
-	{ }
+	{
+		u8 DataCount = packet_.n;
+		u8* DataPointer = packet_.buf;
+		//program beginning bytes before words
+		while(((uint16_t)memPtr_ % 4) && (DataCount))
+		{
+			*memPtr_++ = *DataPointer++;
+			while( (FLASH->IAPSR & (FLASH_IAPSR_EOP | FLASH_IAPSR_WR_PG_DIS)) == 0)
+				;
+			DataCount--;
+		}
+		//program beginning words before blocks
+		while(((uint16_t)memPtr_ % BLOCK_BYTES) && (DataCount >= 4))
+		{
+			FLASH->CR2 |= (u8)0x40;
+			FLASH->NCR2 &= (u8)~0x40;
+//			for(uint8_t i = 0; i < 4; ++i) {
+//				*memPtr_++ = *DataPointer++;
+//			}
+			memPtr_[0] = DataPointer[0]; /* Write one byte - from lowest memptr_*/
+			memPtr_[1] = DataPointer[1]; /* Write one byte*/
+			memPtr_[2] = DataPointer[2]; /* Write one byte*/
+			memPtr_[3] = DataPointer[3]; /* Write one byte - from higher address*/
+			while((FLASH->IAPSR & (FLASH_IAPSR_EOP | FLASH_IAPSR_WR_PG_DIS)) == 0)
+				;
+			memPtr_ += 4;
+			DataPointer += 4;
+			DataCount -= 4;
+		}
+		//program blocks
+		while(DataCount >= BLOCK_BYTES)
+		{
+			WriteFlashBlock(&DataPointer);
+			DataCount -= BLOCK_BYTES;
+		}
+		//program remaining words (after blocks)
+		while(DataCount >= 4)
+		{
+			FLASH->CR2 |= (u8)0x40;
+			FLASH->NCR2 &= (u8)~0x40;
+//			for(uint8_t i = 0; i < 4; ++i) {
+//				*memPtr_++ = *DataPointer++;
+//			}
+			memPtr_[0] = DataPointer[0]; /* Write one byte - from lowest memptr_*/
+			memPtr_[1] = DataPointer[1]; /* Write one byte*/
+			memPtr_[2] = DataPointer[2]; /* Write one byte*/
+			memPtr_[3] = DataPointer[3]; /* Write one byte - from higher address*/
+			while( (FLASH->IAPSR & (FLASH_IAPSR_EOP | FLASH_IAPSR_WR_PG_DIS)) == 0)
+				;
+			memPtr_ += 4;
+			DataPointer += 4;
+			DataCount -= 4;
+		}
+		//program remaining bytes (after words)
+		while(DataCount)
+		{
+			*memPtr_++ = *DataPointer++;
+			while( (FLASH->IAPSR & (FLASH_IAPSR_EOP | FLASH_IAPSR_WR_PG_DIS)) == 0)
+				;
+			DataCount--;
+		}
+	}
+
 	static void Read()
 	{
 		enum { BUF_OFFSET = 3 };
@@ -162,45 +254,45 @@ private:
 			return;
 		}
 		uint8_t length = packet_.buf[0];
-		const uint16_t memEnd = (uint16_t)memptr_ & 0x8000 ? Traits::FlashEnd : Traits::EepromEnd;
-		if(memEnd < (uint16_t)memptr_ + length) {
-			length = memEnd - (uint16_t)memptr_;
+		const uint16_t memEnd = (uint16_t)memPtr_ & 0x8000 ? Traits::FlashEnd : Traits::EepromEnd;
+		if(memEnd < (uint16_t)memPtr_ + length) {
+			length = memEnd - (uint16_t)memPtr_;
 		}
 		for(uint8_t i = 0; i < length; ++i) {
-			packet_.buf[i + BUF_OFFSET] = *memptr_++;
+			packet_.buf[i + BUF_OFFSET] = *memPtr_++;
 		}
 		packet_.buf[0] = ERR_NO;
-		*(uint16_t*)&packet_.buf[1] = (uint16_t)memptr_ - (memEnd == Traits::FlashEnd ? Traits::FlashStart : Traits::EepromStart);
+		*(uint16_t*)&packet_.buf[1] = (uint16_t)memPtr_ - (memEnd == Traits::FlashEnd ? Traits::FlashStart : Traits::EepromStart);
 		packet_.n = length + BUF_OFFSET;
 	}
 
 	static void SetPosition()
 	{
-		//packet size is valid
+		//packet size validation
 		if(packet_.n != 2) {
 			packet_.buf[0] = ERR_PA;
 			packet_.n = 1;
 			return;
 		}
 		bool eepromFlag = packet_.buf[0] & 0x80;
-		//set in flash
+		//set flash address
 		if(!eepromFlag) {
 			uint16_t addr = *(uint16_t*)packet_.buf + Traits::FlashStart;
 			//address is valid
 			if(addr < Traits::FlashEnd) {
-				memptr_ = (uint8_t*)addr;
+				memPtr_ = (uint8_t*)addr;
 				packet_.buf[0] = ERR_NO;
 				*(uint16_t*)&packet_.buf[1] = addr;
 				packet_.n = 3;
 				return;
 			}
 		}
-		//set in eeprom
+		//set eeprom address
 		else {
 			uint16_t addr = (*(uint16_t*)packet_.buf & ~0x8000U) + Traits::EepromStart;
 			//address is valid
 			if(addr < Traits::EepromEnd) {
-				memptr_ = (uint8_t*)addr;
+				memPtr_ = (uint8_t*)addr;
 				packet_.buf[0] = ERR_NO;
 				*(uint16_t*)&packet_.buf[1] = addr;
 				packet_.n = 3;
@@ -291,12 +383,12 @@ private:
 				}
 				packet_.n = rxData;
 				crc_(rxData);		//обновление CRC
-				ptr_ = 0;			//обнуляем указатель данных
+				rxBufPtr_ = 0;			//обнуляем указатель данных
 				state_ = DATA;		//переходим к приему данных
 				break;
 			case DATA:                     //-----> ожидание приема данных
-				if(ptr_ < packet_.n) {      //если не все данные приняты,
-					packet_.buf[ptr_++] = rxData; //то сохранение байта данных,
+				if(rxBufPtr_ < packet_.n) {      //если не все данные приняты,
+					packet_.buf[rxBufPtr_++] = rxData; //то сохранение байта данных,
 					crc_(rxData);  //обновление CRC
 					break;
 				}
@@ -346,11 +438,11 @@ private:
 			case NBT:                      //-----> передача количества байт
 				dataByte = packet_.n;
 				state_ = DATA;
-				ptr_ = 0;                  //обнуление указателя данных для передачи
+				rxBufPtr_ = 0;                  //обнуление указателя данных для передачи
 				break;
 			case DATA:                     //-----> передача данных
-				if(ptr_ < packet_.n) {
-					dataByte = packet_.buf[ptr_++];
+				if(rxBufPtr_ < packet_.n) {
+					dataByte = packet_.buf[rxBufPtr_++];
 				}
 				else {
 					dataByte = crc_.Get();        //передача CRC
@@ -377,7 +469,7 @@ private:
 		//check if key valid
 		if(BOOTLOADER_KEY == *(uint32_t*)packet_.buf) {
 		//set position at application flash start
-			memptr_ = (uint8_t*)UBC_END;
+			memPtr_ = (uint8_t*)UBC_END;
 		//generate response
 			packet_.buf[0] = ERR_NO;
 			packet_.buf[1] = DeviceID << 4 | BOOTLOADER_VER;
@@ -462,11 +554,11 @@ uint8_t Bootloader<DeviceID, baud, DriverEnable>::prevByte_;
 template<McuId DeviceID, Uarts::BaudRate baud, typename DriverEnable>
 State Bootloader<DeviceID, baud, DriverEnable>::state_;
 template<McuId DeviceID, Uarts::BaudRate baud, typename DriverEnable>
-uint8_t Bootloader<DeviceID, baud, DriverEnable>::ptr_;
+uint8_t Bootloader<DeviceID, baud, DriverEnable>::rxBufPtr_;
 template<McuId DeviceID, Uarts::BaudRate baud, typename DriverEnable>
 uint8_t Bootloader<DeviceID, baud, DriverEnable>::cmd_;
 template<McuId DeviceID, Uarts::BaudRate baud, typename DriverEnable>
-uint8_t* Bootloader<DeviceID, baud, DriverEnable>::memptr_;
+uint8_t* Bootloader<DeviceID, baud, DriverEnable>::memPtr_ = (uint8_t*)UBC_END;
 
 
 }//Wk
