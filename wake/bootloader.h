@@ -266,6 +266,7 @@ private:
 		packet_.n = length + BUF_OFFSET;
 	}
 
+    FORCEINLINE
 	static void SetPosition()
 	{
 		//packet size validation
@@ -403,7 +404,7 @@ private:
 			}
 		}
 	}
-	static void Transmit()
+    static void Transmit()
 	{
 		using namespace Uarts;
 		DriverEnable::Set(); //Switch to TX
@@ -510,12 +511,9 @@ public:
 	{
 		while(true) {
 			Receive();
-			if(cmd_ == C_Err) {
-				cmd_ = C_NOP;
-				continue;
-			}
 			switch (cmd_) {
-			case C_NOP:
+            case C_NOP: case C_Err:
+                cmd_ = C_NOP;
 				continue;
 			case C_Echo:
 				break;
