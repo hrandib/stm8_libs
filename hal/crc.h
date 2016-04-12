@@ -15,8 +15,8 @@ private:
 	static const uint8_t table[256];
 	uint8_t crc_;
 public:
-	Crc8(uint8_t init = 0) : crc_(init)
-	{	}
+//	Crc8(uint8_t init = 0) : crc_(init)
+//	{	}
 	Self& Reset(uint8_t init = 0)
 	{
 		crc_ = init;
@@ -78,8 +78,8 @@ private:
 	typedef Crc8 Self;
 	uint8_t crc_;
 public:
-	Crc8(uint8_t init = 0) : crc_(init)
-	{	}
+//  Crc8(uint8_t init = 0) : crc_(init)
+//	{	}
 	Self& Reset(uint8_t init = 0)
 	{
 		crc_ = init;

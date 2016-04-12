@@ -9,8 +9,8 @@
 #include "flash.h"
 #include <string.h>
 
-#define UBC_END 0x8400UL
-#define UBC_END_ASM "$8400"
+#define UBC_END 0x8600UL
+#define UBC_END_ASM "$8600"
 
 //#define TOSTRING(s) str(s)
 //#define str(s) #s
@@ -160,7 +160,7 @@ namespace Mcudrv {
       __ramfunc
       static void WriteFlashBlock(u8** data)
       {
-        /* Block programming mode */
+        /* Standard block programming mode */
         FLASH->CR2 |= (u8)0x01;
         FLASH->NCR2 &= (u8)~0x01;
 
