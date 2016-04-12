@@ -198,17 +198,17 @@ private:
 		{
 			FLASH->CR2 |= (u8)0x40;
 			FLASH->NCR2 &= (u8)~0x40;
-//			for(uint8_t i = 0; i < 4; ++i) {
-//				*memPtr_++ = *DataPointer++;
-//			}
-			memPtr_[0] = DataPointer[0]; /* Write one byte - from lowest memptr_*/
-			memPtr_[1] = DataPointer[1]; /* Write one byte*/
-			memPtr_[2] = DataPointer[2]; /* Write one byte*/
-			memPtr_[3] = DataPointer[3]; /* Write one byte - from higher address*/
+			for(uint8_t i = 0; i < 4; ++i) {
+				*memPtr_++ = *DataPointer++;
+			}
+//			memPtr_[0] = DataPointer[0]; /* Write one byte - from lowest memptr_*/
+//			memPtr_[1] = DataPointer[1]; /* Write one byte*/
+//			memPtr_[2] = DataPointer[2]; /* Write one byte*/
+//			memPtr_[3] = DataPointer[3]; /* Write one byte - from higher address*/
 			while((FLASH->IAPSR & (FLASH_IAPSR_EOP | FLASH_IAPSR_WR_PG_DIS)) == 0)
 				;
-			memPtr_ += 4;
-			DataPointer += 4;
+//			memPtr_ += 4;
+//			DataPointer += 4;
 			DataCount -= 4;
 		}
 		//program blocks
@@ -222,17 +222,17 @@ private:
 		{
 			FLASH->CR2 |= (u8)0x40;
 			FLASH->NCR2 &= (u8)~0x40;
-//			for(uint8_t i = 0; i < 4; ++i) {
-//				*memPtr_++ = *DataPointer++;
-//			}
-			memPtr_[0] = DataPointer[0]; /* Write one byte - from lowest memptr_*/
-			memPtr_[1] = DataPointer[1]; /* Write one byte*/
-			memPtr_[2] = DataPointer[2]; /* Write one byte*/
-			memPtr_[3] = DataPointer[3]; /* Write one byte - from higher address*/
+			for(uint8_t i = 0; i < 4; ++i) {
+				*memPtr_++ = *DataPointer++;
+			}
+//			memPtr_[0] = DataPointer[0]; /* Write one byte - from lowest memptr_*/
+//			memPtr_[1] = DataPointer[1]; /* Write one byte*/
+//			memPtr_[2] = DataPointer[2]; /* Write one byte*/
+//			memPtr_[3] = DataPointer[3]; /* Write one byte - from higher address*/
 			while( (FLASH->IAPSR & (FLASH_IAPSR_EOP | FLASH_IAPSR_WR_PG_DIS)) == 0)
 				;
-			memPtr_ += 4;
-			DataPointer += 4;
+//			memPtr_ += 4;
+//			DataPointer += 4;
 			DataCount -= 4;
 		}
 		//program remaining bytes (after words)
@@ -326,7 +326,7 @@ private:
 			//Frame Begin
 			if(rxData == FEND) {		//если обнаружено начало фрейма,
 				prevByte_ = rxData;		//то сохранение пре-байта,
-				crc_.Reset(CRC_INIT).Eval(rxData);	//инициализация CRC,
+				crc_.Reset(CRC_INIT)(rxData);	//инициализация CRC,
 				state_ = ADDR;				//сброс указателя данных,
 				continue;
 			}
@@ -392,7 +392,7 @@ private:
 					crc_(rxData);  //обновление CRC
 					break;
 				}
-				if(rxData != crc_.Get()) {  //если приняты все данные, то проверка CRC
+				if(rxData != crc_.GetResult()) {  //если приняты все данные, то проверка CRC
 					state_ = WAIT_FEND;				//если CRC не совпадает,
 					cmd_ = C_ERR;							//то ошибка
 					return;
@@ -445,7 +445,7 @@ private:
 					dataByte = packet_.buf[rxBufPtr_++];
 				}
 				else {
-					dataByte = crc_.Get();        //передача CRC
+					dataByte = crc_.GetResult();        //передача CRC
 					state_ = CRC;
 				}
 				break;
@@ -463,7 +463,6 @@ private:
 			Uart::Putch(dataByte);
 		}
 	}
-
 	static void GetInfo()
 	{
 		//check if key valid

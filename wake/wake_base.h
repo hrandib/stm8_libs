@@ -616,7 +616,7 @@ namespace Mcudrv
 								data_byte = pdata.buf[ptr++];
 							else
 							{
-								data_byte = crc.Get();        //передача CRC
+								data_byte = crc.GetResult();        //передача CRC
 								state = CRC;
 							}
 							break;
@@ -748,7 +748,7 @@ namespace Mcudrv
 							crc(data_byte);  //обновление CRC
 							break;
 						}
-						if(data_byte != crc.Get())      //если приняты все данные, то проверка CRC
+						if(data_byte != crc.GetResult())      //если приняты все данные, то проверка CRC
 						{
 							state = WAIT_FEND;		//если CRC не совпадает,
 							cmd = C_ERR;			//то ошибка
