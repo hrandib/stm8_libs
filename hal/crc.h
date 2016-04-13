@@ -17,6 +17,10 @@ private:
 public:
 //	Crc8(uint8_t init = 0) : crc_(init)
 //	{	}
+    void Init(uint8_t init)
+    {
+      crc_ = init;
+    }
 	Self& Reset(uint8_t init = 0)
 	{
 		crc_ = init;
@@ -60,7 +64,7 @@ struct Crc8_Algo1
 };
 struct Crc8_Algo2
 {
-#pragma inline=forced
+    #pragma inline=forced
 	static void Evaluate(uint8_t& crc, uint8_t inByte)
 	{
 		for(char i = 0; i < 8; inByte = inByte >> 1, ++i)
@@ -80,6 +84,10 @@ private:
 public:
 //  Crc8(uint8_t init = 0) : crc_(init)
 //	{	}
+    void Init(uint8_t init)
+    {
+      crc_ = init;
+    }
 	Self& Reset(uint8_t init = 0)
 	{
 		crc_ = init;
@@ -94,7 +102,8 @@ public:
 	{
 		for(uint8_t i = 0; i < len; ++i)
 		{
-			Algo::Evaluate(crc_, buf[i]);
+          operator()(buf[i]);
+//        Algo::Evaluate(crc_, buf[i]);
 		}
 		return *this;
 	}

@@ -125,8 +125,8 @@ namespace Mcudrv {
     class Bootloader
     {
     private:
-      typedef Uarts::Uart Uart;
       typedef BootTraits<DeviceID> Traits;
+      typedef Uarts::Uart Uart;
       enum {
         BlockSize = DeviceID >= ID_STM8S105C6 ? 128 : 64,
         SingleWireMode = Uart::BaseAddr == UART1_BaseAddress ? Uarts::SingleWireMode : 0,
@@ -151,11 +151,28 @@ namespace Mcudrv {
       static WakeData::Packet packet_;
       static Crc::Crc8_NoLUT crc_;
       static uint8_t prevByte_;
-      static State state_;				//Current tranfer mode
+      static State state_;                  //Current tranfer mode
       static uint8_t rxBufPtr_;				//data pointer in Rx buffer
       static uint8_t cmd_;
       static uint8_t* memPtr_;
-      //	static FLASH_MemType memType;
+
+      /*struct Uart : Uarts::Uart
+      {
+        static uint8_t Getch()
+        {
+          uint8_t count = 0;
+          while(true) {
+            if(IsEvent(Uarts::EvRxne)) {
+              return Regs()->DR;
+            }
+            if(!--count) {
+              state_ = WAIT_FEND;
+              return 0;
+            }
+            delay_us<1000>();
+          }
+        }
+      };*/
 
       __ramfunc
       static void WriteFlashBlock(u8** data)
