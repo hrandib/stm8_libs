@@ -4,10 +4,11 @@
  */
 #pragma once
 
-#define WAKEDATABUFSIZE 128
-#include "wake_base.h"
+#include "uart.h"
+#include "crc.h"
 #include "flash.h"
-#include <string.h>
+
+#define WAKEDATABUFSIZE 128
 
 #define UBC_END 0x8600UL
 #define UBC_END_ASM "$8600"
@@ -73,6 +74,70 @@ namespace Mcudrv {
       ID_STM8S105C6 = 0x08	//Devices with 128 flash block size start from 0x08
     };
 
+    enum InstructionSet {
+      C_NOP,
+      C_ERR,
+      C_ECHO,
+      C_GETINFO,
+      C_SETPOSITION = 12,
+      C_READ,
+      C_WRITE,
+      C_GO
+    };
+
+    enum State
+    {
+        WAIT_FEND = 0,     //ожидание приема FEND
+        SEND_IDLE = 0,											//состояние бездействия
+        ADDR,     //ожидание приема адреса						//передача адреса
+        CMD,      //ожидание приема команды						//передача команды
+        NBT,      //ожидание приема количества байт в пакете	//передача количества байт в пакете
+        DATA,     //прием данных								//передача данных
+        CRC,      //ожидание окончания приема CRC				//передача CRC
+        CARR	   //ожидание несущей							//окончание передачи пакета
+    };
+
+    enum Err
+    {
+        ERR_NO,	//no error
+        ERR_TX,	//Rx/Tx error
+        ERR_BU,	//device busy error
+        ERR_RE,	//device not ready error
+        ERR_PA,	//parameters value error
+        ERR_NI,	//Command not impl
+        ERR_NR,	//no replay
+        ERR_NC,	//no carrier
+        ERR_ADDRFMT,	//new address is wrong
+        ERR_EEPROMUNLOCK //EEPROM wasn't unlocked
+    };
+
+    enum
+    {
+      REBOOT_KEY = 0xEB47ED91UL, // Host should use big endian format
+      CRC_INIT = 0xDE,
+      FEND = 0xC0,    //Frame END
+      FESC = 0xDB,    //Frame ESCape
+      TFEND = 0xDC,    //Transposed Frame END
+      TFESC = 0xDD    //Transposed Frame ESCape
+    };
+
+    enum
+    {
+      BOOTSTART_KEY = 0x5A,
+      BOOTLOADER_KEY = 0xA5,
+      BOOTRESPONSE = 0xAB,
+      WakeAddress = 112,
+      BOOTLOADER_VER = 0x01
+    };
+
+    struct Packet
+    {
+        uint8_t addr;
+        uint8_t cmd;
+        uint8_t n;
+        uint8_t buf[WAKEDATABUFSIZE];
+    };
+
     template<McuId Id>
     struct BootTraits;
     template<>
@@ -113,13 +178,6 @@ namespace Mcudrv {
       };
     };
 
-    enum
-    {
-      BOOTLOADER_KEY = 0x34B8126EUL,	// Host should use big endian format
-      WakeAddress = 112,
-      BOOTLOADER_VER = 0x01
-    };
-
     template<McuId DeviceID = ID_STM8S003F3, Uarts::BaudRate baud = 9600UL,
              typename DriverEnable = Pd6>
     class Bootloader
@@ -139,23 +197,13 @@ namespace Mcudrv {
         MEMTYPE_PROG,
         MEMTYPE_DATA
       };
-      enum InstructionSet {
-        C_Err = 1,
-        C_Echo = 2,
-        C_GetInfo = 3,
-        C_SetPosition = 12,
-        C_Read,
-        C_Write,
-        C_Go
-      };
-      static WakeData::Packet packet_;
+      static Packet packet_;
       static Crc::Crc8_NoLUT crc_;
       static uint8_t prevByte_;
       static State state_;                  //Current tranfer mode
       static uint8_t rxBufPtr_;				//data pointer in Rx buffer
       static uint8_t cmd_;
       static uint8_t* memPtr_;
-
       /*struct Uart : Uarts::Uart
       {
         static uint8_t Getch()
@@ -173,7 +221,6 @@ namespace Mcudrv {
           }
         }
       };*/
-
       __ramfunc
       static void WriteFlashBlock(u8** data)
       {
@@ -200,9 +247,7 @@ namespace Mcudrv {
       FORCEINLINE static void GetInfo()
       {
         //check if key valid
-        if(BOOTLOADER_KEY == *(uint32_t*)packet_.buf) {
-          //set position at application flash start
-          memPtr_ = (uint8_t*)UBC_END;
+        if(BOOTLOADER_KEY == packet_.buf[0]) {
           //generate response
           packet_.buf[0] = ERR_NO;
           packet_.buf[1] = DeviceID << 4 | BOOTLOADER_VER;
@@ -493,16 +538,29 @@ namespace Mcudrv {
         Lock<Eeprom>();
       }
     public:
+      FORCEINLINE static bool ProcessHandshake()
+      {
+        if(Uart::IsEvent(Uarts::EvRxne) && Uart::Getch() == BOOTSTART_KEY) {
+          DriverEnable::Set();
+          Uart::Putch(BOOTRESPONSE);
+          while(!Uart::IsEvent(Uarts::EvTxComplete))
+            ;
+          DriverEnable::Clear();
+          return true;
+        }
+        return false;
+      }
       FORCEINLINE static void Go()
       {
-        Deinit();
-        //TODO: Need RAM cleanup
-        //reset stack pointer (lower byte - because compiler decreases SP with some bytes)
-        asm("LDW X,  SP ");
-        asm("LD  A,  $FF");
-        asm("LD  XL, A  ");
-        asm("LDW SP, X  ");
-        asm("JPF " UBC_END_ASM);
+        if((*((u8*)UBC_END)==0x82) || (*((u8*)UBC_END)==0xAC)) {
+          Deinit();
+    //reset stack pointer (lower byte - because compiler decreases SP with some bytes)
+          asm("LDW X,  SP ");
+          asm("LD  A,  $FF");
+          asm("LD  XL, A  ");
+          asm("LDW SP, X  ");
+          asm("JPF " UBC_END_ASM);
+        }
       }
       FORCEINLINE static void Init()
       {
@@ -517,29 +575,38 @@ namespace Mcudrv {
         while(true) {
           Receive();
           switch (cmd_) {
-          case C_NOP: case C_Err:
+          case C_NOP: case C_ERR:
             cmd_ = C_NOP;
             continue;
-          case C_Echo:
+          case C_ECHO:
             break;
-          case C_GetInfo:
+          case C_GETINFO:
             GetInfo();
             break;
-          case C_SetPosition:
+          case C_SETPOSITION:
             SetPosition();
             break;
-          case C_Read:
+          case C_READ:
             Read();
             break;
-          case C_Write:
+          case C_WRITE:
             WriteFlash();
             break;
-          case C_Go:
-            Go();
+          case C_GO:
+            if(BOOTLOADER_KEY == packet_.buf[0]) {
+              Go();
+              //if user firmware not found
+              packet_.buf[0] = ERR_RE; //Not ready
+              packet_.n = 1;
+            }
+            else {
+              packet_.buf[0] = ERR_PA;
+              packet_.n = 1;
+            }
             break;
           default:
             packet_.buf[0] = ERR_NI;
-            packet_.cmd = C_Err;
+            packet_.cmd = C_ERR;
             packet_.n = 1;
           }
           Transmit();
@@ -548,7 +615,7 @@ namespace Mcudrv {
     };
 
     template<McuId DeviceID, Uarts::BaudRate baud, typename DriverEnable>
-    WakeData::Packet Bootloader<DeviceID, baud, DriverEnable>::packet_;
+    Packet Bootloader<DeviceID, baud, DriverEnable>::packet_;
     template<McuId DeviceID, Uarts::BaudRate baud, typename DriverEnable>
     Crc::Crc8_NoLUT Bootloader<DeviceID, baud, DriverEnable>::crc_;
     template<McuId DeviceID, Uarts::BaudRate baud, typename DriverEnable>

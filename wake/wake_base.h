@@ -3,8 +3,8 @@
 //
 #pragma once
 
-#include "timers.h"
 #include "uart.h"
+#include "timers.h"
 #include "flash.h"
 #include "itc.h"
 #include "crc.h"
@@ -25,7 +25,6 @@ namespace Mcudrv
 {
 	namespace Wk
 	{
-
 //	---=== Operation time counter ===---
 		class OpTime
 		{
@@ -295,7 +294,7 @@ namespace Mcudrv
 			}
 		};
 
-		class WakeData
+        class WakeData
 		{
 		public:
 			struct Packet
@@ -305,7 +304,7 @@ namespace Mcudrv
 				uint8_t n;
 				uint8_t buf[WAKEDATABUFSIZE];
 			};
-		protected:
+        protected:
 			static volatile Packet pdata;
 			static volatile uint8_t cmd;
 			static uint8_t processedMask;		//used to check if command processed in modules
@@ -395,7 +394,7 @@ namespace Mcudrv
 				DriverEnable::template SetConfig<GpioBase::Out_PushPull_fast>();
 				DriverEnable::Clear();
 				moduleList::Init();
-				OpTime::Init();
+                OpTime::Init();
 				Wdg::Iwdg::Enable(Wdg::P_1s);
 				Uart::EnableInterrupt(IrqDefault);
 			}
@@ -403,11 +402,11 @@ namespace Mcudrv
 			static void Process()
 			{
 				Wdg::Iwdg::Refresh();
-				if(OpTime::GetTenMinitesFlag() && !IsActive()) {
-					OpTime::ClearTenMinutesFlag();
-					OpTime::CountInc();			//Refresh optime counter every 10 mins
-					moduleList::SaveState();		//Save to EEPROM
-				}
+                if(OpTime::GetTenMinitesFlag() && !IsActive()) {
+                    OpTime::ClearTenMinutesFlag();
+                    OpTime::CountInc();			//Refresh optime counter every 10 mins
+                    moduleList::SaveState();		//Save to EEPROM
+                }
 				if(cmd) {
 					switch(cmd) {
 					case C_NOP: case C_ECHO:
@@ -453,7 +452,7 @@ namespace Mcudrv
 					case C_GETOPTIME:
 						if(!pdata.n) {
 							pdata.buf[0] = Wk::ERR_NO;
-							OpTime::Get(&pdata.buf[1]);
+//							OpTime::Get(&pdata.buf[1]);
 							pdata.n = 4;
 						}
 						else {
@@ -793,5 +792,5 @@ namespace Mcudrv
 				 typename DEpin,
 				 Mode mode>
 		Crc::Crc8 Wake<moduleList, baud, DEpin, mode>::crc;
-	}
-}
+    }//Wk
+}//Mcudrv
