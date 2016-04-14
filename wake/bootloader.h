@@ -71,44 +71,8 @@ namespace Mcudrv {
     {
       ID_STM8S003F3,
       ID_STM8S103F3,
-      ID_STM8S105C6 = 0x08	//Devices with 128 flash block size start from 0x08
-    };
-
-    enum InstructionSet {
-      C_NOP,
-      C_ERR,
-      C_ECHO,
-      C_GETINFO,
-      C_SETPOSITION = 12,
-      C_READ,
-      C_WRITE,
-      C_GO
-    };
-
-    enum State
-    {
-        WAIT_FEND = 0,     //ожидание приема FEND
-        SEND_IDLE = 0,											//состояние бездействия
-        ADDR,     //ожидание приема адреса						//передача адреса
-        CMD,      //ожидание приема команды						//передача команды
-        NBT,      //ожидание приема количества байт в пакете	//передача количества байт в пакете
-        DATA,     //прием данных								//передача данных
-        CRC,      //ожидание окончания приема CRC				//передача CRC
-        CARR	   //ожидание несущей							//окончание передачи пакета
-    };
-
-    enum Err
-    {
-        ERR_NO,	//no error
-        ERR_TX,	//Rx/Tx error
-        ERR_BU,	//device busy error
-        ERR_RE,	//device not ready error
-        ERR_PA,	//parameters value error
-        ERR_NI,	//Command not impl
-        ERR_NR,	//no replay
-        ERR_NC,	//no carrier
-        ERR_ADDRFMT,	//new address is wrong
-        ERR_EEPROMUNLOCK //EEPROM wasn't unlocked
+      ID_STM8L051F3,
+      ID_STM8S105C6 = 0x08	//Devices with 128 bytes flash block size start from 0x08
     };
 
     enum
@@ -130,14 +94,6 @@ namespace Mcudrv {
       BOOTLOADER_VER = 0x01
     };
 
-    struct Packet
-    {
-        uint8_t addr;
-        uint8_t cmd;
-        uint8_t n;
-        uint8_t buf[WAKEDATABUFSIZE];
-    };
-
     template<McuId Id>
     struct BootTraits;
     template<>
@@ -150,7 +106,7 @@ namespace Mcudrv {
         EepromStart = 0x4000UL,
         //	EepromEnd = 0x4080UL,
         EepromEnd = 0x4280UL,		//not documented, but exist
-        EepromSize = EepromEnd - EepromStart,
+        EepromSize = EepromEnd - EepromStart
       };
     };
     template<>
@@ -162,7 +118,19 @@ namespace Mcudrv {
         FlashSize = FlashEnd - UBC_END,
         EepromStart = 0x4000UL,
         EepromEnd = 0x4280UL,
-        EepromSize = EepromEnd - EepromStart,
+        EepromSize = EepromEnd - EepromStart
+      };
+    };
+    template<>
+    struct BootTraits<ID_STM8L051F3>
+    {
+      enum {
+        FlashStart = UBC_END,
+        FlashEnd = 0xA000UL,
+        FlashSize = FlashEnd - UBC_END,
+        EepromStart = 0x1000UL,
+        EepromEnd = 0x1100UL,
+        EepromSize = EepromEnd - EepromStart
       };
     };
     template<>
@@ -174,11 +142,19 @@ namespace Mcudrv {
         FlashSize = FlashEnd - UBC_END,
         EepromStart = 0x4000UL,
         EepromEnd = 0x4400UL,
-        EepromSize = EepromEnd - EepromStart,
+        EepromSize = EepromEnd - EepromStart
       };
     };
 
-    template<McuId DeviceID = ID_STM8S003F3, Uarts::BaudRate baud = 9600UL,
+    struct Packet
+    {
+        uint8_t addr;
+        uint8_t cmd;
+        uint8_t n;
+        uint8_t buf[WAKEDATABUFSIZE];
+    };
+
+    template<McuId DeviceID, Uarts::BaudRate baud = 9600UL,
              typename DriverEnable = Pd6>
     class Bootloader
     {
@@ -197,6 +173,40 @@ namespace Mcudrv {
         MEMTYPE_PROG,
         MEMTYPE_DATA
       };
+      enum InstructionSet {
+        C_NOP,
+        C_ERR,
+        C_ECHO,
+        C_GETINFO,
+        C_SETPOSITION = 12,
+        C_READ,
+        C_WRITE,
+        C_GO
+      };
+      enum State
+      {
+          WAIT_FEND = 0,     //ожидание приема FEND
+          SEND_IDLE = 0,											//состояние бездействия
+          ADDR,     //ожидание приема адреса						//передача адреса
+          CMD,      //ожидание приема команды						//передача команды
+          NBT,      //ожидание приема количества байт в пакете	//передача количества байт в пакете
+          DATA,     //прием данных								//передача данных
+          CRC,      //ожидание окончания приема CRC				//передача CRC
+          CARR	   //ожидание несущей							//окончание передачи пакета
+      };
+      enum Err
+      {
+          ERR_NO,	//no error
+          ERR_TX,	//Rx/Tx error
+          ERR_BU,	//device busy error
+          ERR_RE,	//device not ready error
+          ERR_PA,	//parameters value error
+          ERR_NI,	//Command not impl
+          ERR_NR,	//no replay
+          ERR_NC,	//no carrier
+          ERR_ADDRFMT,	//new address is wrong
+          ERR_EEPROMUNLOCK //EEPROM wasn't unlocked
+      };
       static Packet packet_;
       static Crc::Crc8_NoLUT crc_;
       static uint8_t prevByte_;
@@ -204,25 +214,7 @@ namespace Mcudrv {
       static uint8_t rxBufPtr_;				//data pointer in Rx buffer
       static uint8_t cmd_;
       static uint8_t* memPtr_;
-      /*struct Uart : Uarts::Uart
-      {
-        static uint8_t Getch()
-        {
-          uint8_t count = 0;
-          while(true) {
-            if(IsEvent(Uarts::EvRxne)) {
-              return Regs()->DR;
-            }
-            if(!--count) {
-              state_ = WAIT_FEND;
-              return 0;
-            }
-            delay_us<1000>();
-          }
-        }
-      };*/
-      __ramfunc
-      static void WriteFlashBlock(u8** data)
+      __ramfunc static void WriteFlashBlock(u8** data)
       {
         /* Standard block programming mode */
         FLASH->CR2 |= (u8)0x01;
@@ -254,7 +246,7 @@ namespace Mcudrv {
           packet_.buf[2] = (Traits::FlashStart - 0x8000) / 64;
           packet_.n = 3;
         }
-        //key not valid
+        //key is not valid
         else {
           packet_.buf[0] = ERR_PA;
           packet_.n = 1;
@@ -280,14 +272,8 @@ namespace Mcudrv {
           for(uint8_t i = 0; i < 4; ++i) {
             *memPtr_++ = *DataPointer++;
           }
-          //			memPtr_[0] = DataPointer[0]; /* Write one byte - from lowest memptr_*/
-          //			memPtr_[1] = DataPointer[1]; /* Write one byte*/
-          //			memPtr_[2] = DataPointer[2]; /* Write one byte*/
-          //			memPtr_[3] = DataPointer[3]; /* Write one byte - from higher address*/
           while((FLASH->IAPSR & (FLASH_IAPSR_EOP | FLASH_IAPSR_WR_PG_DIS)) == 0)
             ;
-          //			memPtr_ += 4;
-          //			DataPointer += 4;
           DataCount -= 4;
         }
         //program blocks
@@ -304,14 +290,8 @@ namespace Mcudrv {
           for(uint8_t i = 0; i < 4; ++i) {
             *memPtr_++ = *DataPointer++;
           }
-          //			memPtr_[0] = DataPointer[0]; /* Write one byte - from lowest memptr_*/
-          //			memPtr_[1] = DataPointer[1]; /* Write one byte*/
-          //			memPtr_[2] = DataPointer[2]; /* Write one byte*/
-          //			memPtr_[3] = DataPointer[3]; /* Write one byte - from higher address*/
           while( (FLASH->IAPSR & (FLASH_IAPSR_EOP | FLASH_IAPSR_WR_PG_DIS)) == 0)
             ;
-          //			memPtr_ += 4;
-          //			DataPointer += 4;
           DataCount -= 4;
         }
         //program remaining bytes (after words)
@@ -552,6 +532,7 @@ namespace Mcudrv {
       }
       FORCEINLINE static void Go()
       {
+    //simple check if user firmware exist
         if((*((u8*)UBC_END)==0x82) || (*((u8*)UBC_END)==0xAC)) {
           Deinit();
     //reset stack pointer (lower byte - because compiler decreases SP with some bytes)
@@ -621,7 +602,7 @@ namespace Mcudrv {
     template<McuId DeviceID, Uarts::BaudRate baud, typename DriverEnable>
     uint8_t Bootloader<DeviceID, baud, DriverEnable>::prevByte_;
     template<McuId DeviceID, Uarts::BaudRate baud, typename DriverEnable>
-    State Bootloader<DeviceID, baud, DriverEnable>::state_;
+    Bootloader<DeviceID, baud, DriverEnable>::State Bootloader<DeviceID, baud, DriverEnable>::state_;
     template<McuId DeviceID, Uarts::BaudRate baud, typename DriverEnable>
     uint8_t Bootloader<DeviceID, baud, DriverEnable>::rxBufPtr_;
     template<McuId DeviceID, Uarts::BaudRate baud, typename DriverEnable>
