@@ -7,16 +7,18 @@
 #include "uart.h"
 #include "crc.h"
 #include "flash.h"
+#include "bootloaderDefines.h"
 
-#define WAKEDATABUFSIZE 128
+#define WAKEDATABUFSIZE 140
 
-#define UBC_END 0x8600UL
-#define UBC_END_ASM "$8600"
+#define UBC_END 0x8640UL
+#define UBC_END_ASM "$8640"
 
 //#define TOSTRING(s) str(s)
 //#define str(s) #s
 namespace Mcudrv {
   namespace Wk {
+	using namespace WkBoot;
 
     typedef void (*interrupt_handler_t)(void);
 
@@ -67,31 +69,16 @@ namespace Mcudrv {
       {0x8200, VECTOR(31)}, /* irq29 */
     };
 
-    enum McuId
-    {
-      ID_STM8S003F3,
-      ID_STM8S103F3,
-      ID_STM8L051F3,
-      ID_STM8S105C6 = 0x08	//Devices with 128 bytes flash block size start from 0x08
-    };
+		enum {
+			BOOTLOADER_VER = 0x01
+		};
 
-    enum
-    {
-      REBOOT_KEY = 0xEB47ED91UL, // Host should use big endian format
-      CRC_INIT = 0xDE,
+		enum {
+			CRC_INIT = 0xDE,
       FEND = 0xC0,    //Frame END
       FESC = 0xDB,    //Frame ESCape
       TFEND = 0xDC,    //Transposed Frame END
       TFESC = 0xDD    //Transposed Frame ESCape
-    };
-
-    enum
-    {
-      BOOTSTART_KEY = 0x5A,
-      BOOTLOADER_KEY = 0xA5,
-      BOOTRESPONSE = 0xAB,
-      WakeAddress = 112,
-      BOOTLOADER_VER = 0x01
     };
 
     template<McuId Id>
@@ -148,7 +135,7 @@ namespace Mcudrv {
 
     struct Packet
     {
-        uint8_t addr;
+//        uint8_t addr;
         uint8_t cmd;
         uint8_t n;
         uint8_t buf[WAKEDATABUFSIZE];
@@ -173,16 +160,6 @@ namespace Mcudrv {
         MEMTYPE_PROG,
         MEMTYPE_DATA
       };
-      enum InstructionSet {
-        C_NOP,
-        C_ERR,
-        C_ECHO,
-        C_GETINFO,
-        C_SETPOSITION = 12,
-        C_READ,
-        C_WRITE,
-        C_GO
-      };
       enum State
       {
           WAIT_FEND = 0,     //ожидание приема FEND
@@ -205,12 +182,12 @@ namespace Mcudrv {
           ERR_NR,	//no replay
           ERR_NC,	//no carrier
           ERR_ADDRFMT,	//new address is wrong
-          ERR_EEPROMUNLOCK //EEPROM wasn't unlocked
+					ERR_EEPROMUNLOCK //EEPROM wasn't unlocked
       };
       static Packet packet_;
       static Crc::Crc8_NoLUT crc_;
       static uint8_t prevByte_;
-      static State state_;                  //Current tranfer mode
+			static State state_;            //Current tranfer mode
       static uint8_t rxBufPtr_;				//data pointer in Rx buffer
       static uint8_t cmd_;
       static uint8_t* memPtr_;
@@ -254,7 +231,7 @@ namespace Mcudrv {
       }
       static void WriteFlash()
       {
-        u8 DataCount = packet_.n;
+				u8 DataCount = packet_.n;
         u8* DataPointer = packet_.buf;
         //program beginning bytes before words
         while(((uint16_t)memPtr_ % 4) && (DataCount))
@@ -265,35 +242,35 @@ namespace Mcudrv {
           DataCount--;
         }
         //program beginning words before blocks
-        while(((uint16_t)memPtr_ % BLOCK_BYTES) && (DataCount >= 4))
-        {
-          FLASH->CR2 |= (u8)0x40;
-          FLASH->NCR2 &= (u8)~0x40;
-          for(uint8_t i = 0; i < 4; ++i) {
-            *memPtr_++ = *DataPointer++;
-          }
-          while((FLASH->IAPSR & (FLASH_IAPSR_EOP | FLASH_IAPSR_WR_PG_DIS)) == 0)
-            ;
-          DataCount -= 4;
-        }
-        //program blocks
+				while(((uint16_t)memPtr_ % BLOCK_BYTES) && (DataCount >= 4))
+				{
+					FLASH->CR2 |= (u8)0x40;
+					FLASH->NCR2 &= (u8)~0x40;
+					for(uint8_t i = 0; i < 4; ++i) {
+						*memPtr_++ = *DataPointer++;
+					}
+					while((FLASH->IAPSR & (FLASH_IAPSR_EOP | FLASH_IAPSR_WR_PG_DIS)) == 0)
+						;
+					DataCount -= 4;
+				}
+				//program blocks
         while(DataCount >= BLOCK_BYTES)
         {
           WriteFlashBlock(&DataPointer);
           DataCount -= BLOCK_BYTES;
         }
         //program remaining words (after blocks)
-        while(DataCount >= 4)
-        {
-          FLASH->CR2 |= (u8)0x40;
-          FLASH->NCR2 &= (u8)~0x40;
-          for(uint8_t i = 0; i < 4; ++i) {
-            *memPtr_++ = *DataPointer++;
-          }
-          while( (FLASH->IAPSR & (FLASH_IAPSR_EOP | FLASH_IAPSR_WR_PG_DIS)) == 0)
-            ;
-          DataCount -= 4;
-        }
+				while(DataCount >= 4)
+				{
+					FLASH->CR2 |= (u8)0x40;
+					FLASH->NCR2 &= (u8)~0x40;
+					for(uint8_t i = 0; i < 4; ++i) {
+						*memPtr_++ = *DataPointer++;
+					}
+					while( (FLASH->IAPSR & (FLASH_IAPSR_EOP | FLASH_IAPSR_WR_PG_DIS)) == 0)
+						;
+					DataCount -= 4;
+				}
         //program remaining bytes (after words)
         while(DataCount)
         {
@@ -302,6 +279,8 @@ namespace Mcudrv {
             ;
           DataCount--;
         }
+				packet_.buf[0] = ERR_NO;
+				packet_.n = 1;
       }
       FORCEINLINE static void SetPosition()
       {
@@ -342,22 +321,28 @@ namespace Mcudrv {
       static void Read()
       {
         enum { BUF_OFFSET = 3 };
+				//Check packet consistency
         if(packet_.n != 1 || packet_.buf[0] > 128) {
           packet_.buf[0] = ERR_PA;
           packet_.n = 1;
           return;
         }
+				//length of data to read
         uint8_t length = packet_.buf[0];
-        const uint16_t memEnd = (uint16_t)memPtr_ & 0x8000 ? Traits::FlashEnd : Traits::EepromEnd;
-        if(memEnd < (uint16_t)memPtr_ + length) {
+				//Get End position of selected memory type
+				const uint16_t memEnd = (uint16_t)memPtr_ & 0x8000U ? Traits::FlashEnd : Traits::EepromEnd;
+				//If requested more than remained, read only a remnant
+				if((uint16_t)memPtr_ + length > memEnd) {
           length = memEnd - (uint16_t)memPtr_;
         }
-        for(uint8_t i = 0; i < length; ++i) {
-          packet_.buf[i + BUF_OFFSET] = *memPtr_++;
-        }
+				//Fill buffer
+				for(uint8_t i = 0; i < length; ++i) {
+					packet_.buf[i + BUF_OFFSET] = *memPtr_++;
+				}
         packet_.buf[0] = ERR_NO;
-        *(uint16_t*)&packet_.buf[1] = (uint16_t)memPtr_ - (memEnd == Traits::FlashEnd ? Traits::FlashStart : Traits::EepromStart);
-        packet_.n = length + BUF_OFFSET;
+				*(uint16_t*)&packet_.buf[1] = (uint16_t)memPtr_ -
+																			(memEnd == Traits::FlashEnd ? Traits::FlashStart : Traits::EepromStart);
+				packet_.n = length + BUF_OFFSET;
       }
       static void Receive()
       {
@@ -368,8 +353,8 @@ namespace Mcudrv {
           bool error = Uart::IsEvent(static_cast<Events>(EvParityErr | EvFrameErr | EvNoiseErr | EvOverrunErr)); //чтение флагов ошибок
           if(error)	{
             state_ = WAIT_FEND;		//ожидание нового пакета
-            cmd_ = C_ERR;					//рапортуем об ошибке
-            return;
+				 //   cmd_ = C_ERR;					//рапортуем об ошибке
+						continue;
           }
           //Frame Begin
           if(rxData == FEND) {		//если обнаружено начало фрейма,
@@ -393,8 +378,8 @@ namespace Mcudrv {
             }
             else {
               state_ = WAIT_FEND;     //для всех других значений байта данных,
-              cmd_ = C_ERR;         //следующего за FESC, ошибка
-              return;
+			//        cmd_ = C_ERR;         //следующего за FESC, ошибка
+							continue;
             }
           }
           else if(rxData == FESC) {             //если байт данных равен FESC, он просто
@@ -403,21 +388,21 @@ namespace Mcudrv {
           //Main processing
           switch(state_) {
           case ADDR:                     //-----> ожидание приема адреса
-            if(rxData == WakeAddress | 0x80) { //если бит 7 данных не равен нулю, то это адрес
+						if(rxData == (BOOTADDRESS | 0x80)) { //если бит 7 данных не равен нулю, то это адрес
               crc_(rxData); //то обновление CRC и
-              packet_.addr = rxData;
-              state_ = CMD;       //переходим к приему команды
-              break;
+							state_ = CMD;       //переходим к приему команды
+							break;
             }
             else {
               state_ = WAIT_FEND;        //адрес не совпал, ожидание нового пакета
+//							cmd_ = C_NOP;
               break;
             }
           case CMD:                      //-----> ожидание приема команды
             if(rxData & 0x80) {            //проверка бита 7 данных
               state_ = WAIT_FEND;        //если бит 7 не равен нулю,
-              cmd_ = C_ERR;            //то ошибка
-              return;
+//              cmd_ = C_ERR;            //то ошибка
+							break;
             }
             packet_.cmd = rxData;          //сохранение команды
             crc_(rxData);				//обновление CRC
@@ -426,8 +411,8 @@ namespace Mcudrv {
           case NBT:					//-----> ожидание приема количества байт
             if(rxData > WAKEDATABUFSIZE) {	//если количество байт > bufsize,
               state_ = WAIT_FEND;
-              cmd_ = C_ERR;		//то ошибка
-              return;
+//              cmd_ = C_ERR;		//то ошибка
+							break;
             }
             packet_.n = rxData;
             crc_(rxData);		//обновление CRC
@@ -442,12 +427,14 @@ namespace Mcudrv {
             }
             if(rxData != crc_.GetResult()) {  //если приняты все данные, то проверка CRC
               state_ = WAIT_FEND;				//если CRC не совпадает,
-              cmd_ = C_ERR;							//то ошибка
-              return;
+//              cmd_ = C_ERR;							//то ошибка
+							break;
             }
             state_ = WAIT_FEND;		//прием пакета завершен,
             cmd_ = packet_.cmd;		//загрузка команды на выполнение
             return;
+					default:
+						;
           }
         }
       }
@@ -476,8 +463,7 @@ namespace Mcudrv {
           switch(state_) {
           case ADDR:                     //-----> передача адреса
             state_ = CMD;
-            //FIXME: MSB ignored in CRC calculation on PC side (fix on pc)
-            dataByte = WakeAddress | 0x80; //то он передается (бит 7 равен единице)
+						dataByte = BOOTADDRESS | 0x80; //то он передается (бит 7 равен единице)
             break;
           case CMD:                      //-----> передача команды
             dataByte = packet_.cmd & 0x7F;
@@ -548,9 +534,13 @@ namespace Mcudrv {
         using namespace Uarts;
         //Single Wire mode is default for UART1
         Uart::template Init<Cfg(Uarts::DefaultCfg | (Cfg)SingleWireMode), 9600UL>();
-        DriverEnable::Clear();
+				Pc3::SetConfig<GpioBase::Out_PushPull>();
+				DriverEnable::Clear();
         DriverEnable::template SetConfig<GpioBase::Out_PushPull_fast>();
-      }
+				using namespace Mem;
+				Unlock<Flash>();
+				Unlock<Eeprom>();
+			}
       FORCEINLINE static void Process()
       {
         while(true) {
@@ -572,6 +562,7 @@ namespace Mcudrv {
             break;
           case C_WRITE:
             WriteFlash();
+						Pc3::Toggle();
             break;
           case C_GO:
             if(BOOTLOADER_KEY == packet_.buf[0]) {
@@ -609,7 +600,6 @@ namespace Mcudrv {
     uint8_t Bootloader<DeviceID, baud, DriverEnable>::cmd_;
     template<McuId DeviceID, Uarts::BaudRate baud, typename DriverEnable>
     uint8_t* Bootloader<DeviceID, baud, DriverEnable>::memPtr_ = (uint8_t*)UBC_END;
-
 
   }//Wk
 }//Mcudrv
