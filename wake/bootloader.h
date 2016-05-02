@@ -11,11 +11,9 @@
 
 #define WAKEDATABUFSIZE 140
 
-#define UBC_END 0x8640UL
-#define UBC_END_ASM "$8640"
+#define UBC_END 0x8600UL
+#define UBC_END_ASM "$8600"
 
-//#define TOSTRING(s) str(s)
-//#define str(s) #s
 namespace Mcudrv {
   namespace Wk {
 	using namespace WkBoot;
