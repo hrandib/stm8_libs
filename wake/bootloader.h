@@ -149,12 +149,11 @@ namespace Mcudrv {
       typedef BootTraits<DeviceID> Traits;
       typedef Uarts::Uart Uart;
       enum {
-        BlockSize = DeviceID >= ID_STM8S105C6 ? 128 : 64,
         SingleWireMode = Uart::BaseAddr == UART1_BaseAddress ? Uarts::SingleWireMode : 0,
-        BLOCK_BYTES = BlockSize,
+				BLOCK_SIZE = DeviceID >= ID_STM8S105C6 ? 128 : 64,
+				BLOCK_BYTES = BLOCK_SIZE,
         FLASH_START = Traits::FlashStart,
-        EEPROM_START = Traits::EepromStart,
-        BLOCK_SIZE = BlockSize
+				EEPROM_START = Traits::EepromStart
       };
       enum FLASH_MemType {
         MEMTYPE_PROG,
@@ -194,8 +193,8 @@ namespace Mcudrv {
       __ramfunc static void WriteFlashBlock(u8** data)
       {
         /* Standard block programming mode */
-        FLASH->CR2 |= (u8)0x01;
-        FLASH->NCR2 &= (u8)~0x01;
+				FLASH->CR2 |= FLASH_CR2_PRG;
+				FLASH->NCR2 &= ~FLASH_CR2_PRG;
 
         /* Copy data bytes from RAM to FLASH memory */
         for(u16 Count = 0; Count < BLOCK_SIZE; ++Count) {
@@ -220,7 +219,7 @@ namespace Mcudrv {
           //generate response
           packet_.buf[0] = ERR_NO;
           packet_.buf[1] = DeviceID << 4 | BOOTLOADER_VER;
-          packet_.buf[2] = (Traits::FlashStart - 0x8000) / 64;
+					packet_.buf[2] = (FLASH_START - 0x8000) / 64;
           packet_.n = 3;
         }
         //key is not valid
@@ -229,7 +228,7 @@ namespace Mcudrv {
           packet_.n = 1;
         }
       }
-      static void WriteFlash()
+			FORCEINLINE static void WriteFlash()
       {
 				u8 DataCount = packet_.n;
         u8* DataPointer = packet_.buf;
@@ -237,7 +236,7 @@ namespace Mcudrv {
         while(((uint16_t)memPtr_ % 4) && (DataCount))
         {
           *memPtr_++ = *DataPointer++;
-          while( (FLASH->IAPSR & (FLASH_IAPSR_EOP | FLASH_IAPSR_WR_PG_DIS)) == 0)
+					while((FLASH->IAPSR & (FLASH_IAPSR_EOP | FLASH_IAPSR_WR_PG_DIS)) == 0)
             ;
           DataCount--;
         }
@@ -293,9 +292,9 @@ namespace Mcudrv {
         bool eepromFlag = packet_.buf[0] & 0x80;
         //set flash address
         if(!eepromFlag) {
-          uint16_t addr = *(uint16_t*)packet_.buf + Traits::FlashStart;
+					uint16_t addr = *(uint16_t*)packet_.buf + FLASH_START;
           //address is valid
-          if(addr < Traits::FlashEnd) {
+					if(addr < Traits::FlashEnd) {
             memPtr_ = (uint8_t*)addr;
             packet_.buf[0] = ERR_NO;
             *(uint16_t*)&packet_.buf[1] = addr;
@@ -305,7 +304,7 @@ namespace Mcudrv {
         }
         //set eeprom address
         else {
-          uint16_t addr = (*(uint16_t*)packet_.buf & ~0x8000U) + Traits::EepromStart;
+					uint16_t addr = (*(uint16_t*)packet_.buf & ~0x8000U) + EEPROM_START;
           //address is valid
           if(addr < Traits::EepromEnd) {
             memPtr_ = (uint8_t*)addr;
@@ -318,7 +317,7 @@ namespace Mcudrv {
         packet_.buf[0] = ERR_ADDRFMT;
         packet_.n = 1;
       }
-      static void Read()
+			FORCEINLINE static void ReadFlash()
       {
         enum { BUF_OFFSET = 3 };
 				//Check packet consistency
@@ -344,7 +343,7 @@ namespace Mcudrv {
 																			(memEnd == Traits::FlashEnd ? Traits::FlashStart : Traits::EepromStart);
 				packet_.n = length + BUF_OFFSET;
       }
-      static void Receive()
+			FORCEINLINE static void Receive()
       {
         using namespace Uarts;
         while(true) {
@@ -438,7 +437,7 @@ namespace Mcudrv {
           }
         }
       }
-      static void Transmit()
+			FORCEINLINE static void Transmit()
       {
         using namespace Uarts;
         DriverEnable::Set(); //Switch to TX
@@ -531,15 +530,14 @@ namespace Mcudrv {
       }
       FORCEINLINE static void Init()
       {
-        using namespace Uarts;
-        //Single Wire mode is default for UART1
-        Uart::template Init<Cfg(Uarts::DefaultCfg | (Cfg)SingleWireMode), 9600UL>();
-				Pc3::SetConfig<GpioBase::Out_PushPull>();
-				DriverEnable::Clear();
-        DriverEnable::template SetConfig<GpioBase::Out_PushPull_fast>();
+				using namespace Uarts;
 				using namespace Mem;
 				Unlock<Flash>();
 				Unlock<Eeprom>();
+        //Single Wire mode is default for UART1
+        Uart::template Init<Cfg(Uarts::DefaultCfg | (Cfg)SingleWireMode), 9600UL>();
+				DriverEnable::Clear();
+        DriverEnable::template SetConfig<GpioBase::Out_PushPull_fast>();
 			}
       FORCEINLINE static void Process()
       {
@@ -558,11 +556,10 @@ namespace Mcudrv {
             SetPosition();
             break;
           case C_READ:
-            Read();
+						ReadFlash();
             break;
           case C_WRITE:
             WriteFlash();
-						Pc3::Toggle();
             break;
           case C_GO:
             if(BOOTLOADER_KEY == packet_.buf[0]) {

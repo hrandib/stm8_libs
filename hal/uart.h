@@ -110,11 +110,10 @@ namespace Uarts
 	public:
 		static const uint16_t BaseAddr =
 #if defined (STM8S103) || defined (STM8S003)
-			   UART1_BaseAddress
+				 UART1_BaseAddress;
 #elif defined (STM8S105)
-			   UART2_BaseAddress
+				 UART2_BaseAddress;
 #endif
-				;
 		typedef Internal::Base<BaseAddr>::type BaseType;
 		typedef Internal::Base<BaseAddr>::TxPin TxPin;
 		typedef Internal::Base<BaseAddr>::RxPin RxPin;
