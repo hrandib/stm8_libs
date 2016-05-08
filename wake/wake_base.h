@@ -132,7 +132,7 @@ namespace Mcudrv
 		{
 			DefaultADDR = 127,
 			DefaultGroupADDR = 95,
-			REBOOT_KEY = 0xEB47ED91,		// Host should use big endian format
+			REBOOT_KEY = 0xCB47ED91,		// Host should use big endian format
 			CRC_INIT = 0xDE,
 			FEND = 0xC0,    //Frame END
 			FESC = 0xDB,    //Frame ESCape
@@ -294,7 +294,7 @@ namespace Mcudrv
 			}
 		};
 
-        class WakeData
+		class WakeData
 		{
 		public:
 			struct Packet
@@ -321,10 +321,9 @@ namespace Mcudrv
 		{
 		private:
 			typedef Uarts::Uart Uart;
-			enum { SingleWireMode = (Uart::BaseAddr == UART1_BaseAddress ? Uarts::SingleWireMode : 0) };
-			#pragma location=".eeprom.data"
+			#pragma location=".eeprom.noinit"
 			static volatile uint8_t nodeAddr_nv;// @ ".eeprom.data";
-			#pragma location=".eeprom.data"
+			#pragma location=".eeprom.noinit"
 			static volatile uint8_t groupAddr_nv;// @ ".eeprom.data";
 			static volatile uint8_t prev_byte;
 			static volatile State state;				//Current tranfer mode
@@ -390,11 +389,12 @@ namespace Mcudrv
 			{
 				using namespace Uarts;
 		//Single Wire mode is default for UART1
+				enum { SingleWireMode = (Uart::BaseAddr == UART1_BaseAddress ? Uarts::SingleWireMode : 0) };
 				Uart::template Init<Cfg(Uarts::DefaultCfg | (Cfg)SingleWireMode), baud>();
 				DriverEnable::template SetConfig<GpioBase::Out_PushPull_fast>();
 				DriverEnable::Clear();
 				moduleList::Init();
-                OpTime::Init();
+				OpTime::Init();
 				Wdg::Iwdg::Enable(Wdg::P_1s);
 				Uart::EnableInterrupt(IrqDefault);
 			}
@@ -402,11 +402,11 @@ namespace Mcudrv
 			static void Process()
 			{
 				Wdg::Iwdg::Refresh();
-                if(OpTime::GetTenMinitesFlag() && !IsActive()) {
-                    OpTime::ClearTenMinutesFlag();
-                    OpTime::CountInc();			//Refresh optime counter every 10 mins
-                    moduleList::SaveState();		//Save to EEPROM
-                }
+				if(OpTime::GetTenMinitesFlag() && !IsActive()) {
+					OpTime::ClearTenMinutesFlag();
+					OpTime::CountInc();			//Refresh optime counter every 10 mins
+					moduleList::SaveState();		//Save to EEPROM
+				}
 				if(cmd) {
 					switch(cmd) {
 					case C_NOP: case C_ECHO:
@@ -417,9 +417,10 @@ namespace Mcudrv
 					case C_GETINFO:
 						//Common device info
 						if (!pdata.n)	{
-							pdata.buf[0] = moduleList::deviceMask;
-							pdata.buf[1] = INSTRUCTION_SET_VERSION;
-							pdata.n = 2;
+							pdata.buf[0] = ERR_NO;
+							pdata.buf[1] = moduleList::deviceMask;
+							pdata.buf[2] = INSTRUCTION_SET_VERSION;
+							pdata.n = 3;
 						}
 						//Info about single logical device
 						else if(pdata.n == 1)	{
@@ -447,12 +448,19 @@ namespace Mcudrv
 						SetAddress(addrNode);
 						break;
 					case C_SETGROUPADDRESS:
-						SetAddress(addrGroup);
+						if(!pdata.n) {
+							pdata.n = 2;
+							pdata.buf[0] = ERR_NO;
+							pdata.buf[1] = groupAddr_nv;
+						}
+						else {
+							SetAddress(addrGroup);
+						}
 						break;
 					case C_GETOPTIME:
 						if(!pdata.n) {
 							pdata.buf[0] = Wk::ERR_NO;
-//							OpTime::Get(&pdata.buf[1]);
+							OpTime::Get(&pdata.buf[1]);
 							pdata.n = 4;
 						}
 						else {
@@ -559,77 +567,60 @@ namespace Mcudrv
 			__interrupt static void TxISR()
 			{
 				using namespace Uarts;
-				if(Uart::IsEvent(EvTxComplete))
-				{
+				if(Uart::IsEvent(EvTxComplete)) {
 					Uart::ClearEvent(EvTxComplete);
 					Uart::ClearEvent(EvRxne);
 					Uart::EnableInterrupt(IrqRxne);
 					DriverEnable::Clear();		//Switch to RX
 				}
-				else //if(Uart::IsEvent(Uarts::TxEmpty))
-				{
-					char data_byte;
-					if(prev_byte == FEND)               //если производится стаффинг,
-					{
+				else { //if(Uart::IsEvent(Uarts::TxEmpty))
+					uint8_t data_byte;
+					if(prev_byte == FEND) {
 						data_byte = TFEND;                //передача TFEND вместо FEND
 						prev_byte = data_byte;
 						Uart::Regs()->DR = data_byte;
 						return;
 					}
-					if(prev_byte == FESC)               //если производится стаффинг,
-					{
+					if(prev_byte == FESC) {
 						data_byte = TFESC;                //передача TFESC вместо FESC
 						prev_byte = data_byte;
 						Uart::Regs()->DR = data_byte;
 						return;
 					}
-					switch(state)
-					{
+					switch(state) {
 					case ADDR:                     //-----> передача адреса	
-						{
-							state = CMD;
-							if(pdata.addr)                   //если адрес не равен нулю,
-							{
-								data_byte = nodeAddr_nv; //то он передается (бит 7 равен единице)
-								break;
-							}
-								//иначе сразу передаем команду
-						}
-					case CMD:                      //-----> передача команды
-						{
-							data_byte = pdata.cmd & 0x7F;
-							state = NBT;
+						state = CMD;
+						if(pdata.addr) {
+							data_byte = nodeAddr_nv | 0x80; //то он передается (бит 7 равен единице)
 							break;
 						}
+						//иначе сразу передаем команду
+					case CMD:
+						data_byte = pdata.cmd & 0x7F;
+						state = NBT;
+						break;
 					case NBT:                      //-----> передача количества байт
-						{
-							data_byte = pdata.n;
-							state = DATA;
-							ptr = 0;                  //обнуление указателя данных для передачи
-							break;
+						data_byte = pdata.n;
+						state = DATA;
+						ptr = 0;                  //обнуление указателя данных для передачи
+						break;
+					case DATA: {                     //-----> передача данных
+						uint8_t ptr_ = ptr;
+						if(ptr_ < pdata.n) {
+							data_byte = pdata.buf[ptr++];
 						}
-					case DATA:                     //-----> передача данных
-						{
-							uint8_t ptr_ = ptr;
-							if(ptr_ < pdata.n)
-								data_byte = pdata.buf[ptr++];
-							else
-							{
-								data_byte = crc.GetResult();        //передача CRC
-								state = CRC;
-							}
-							break;
+						else {
+							data_byte = crc.GetResult();        //передача CRC
+							state = CRC;
 						}
+						break;
+					}
 					default:
-						{
 							Uart::DisableInterrupt(IrqTxEmpty);
 							state = SEND_IDLE;          //передача пакета завершена
 							return;
-						}
 					}
 					crc(data_byte);     //обновление CRC
-					if (state == CMD)			//Метка адреса
-						data_byte |= 0x80;
 					prev_byte = data_byte;              //сохранение пре-байта
 					if(data_byte == FEND)// || data_byte == FESC)
 						data_byte = FESC;                 //передача FESC, если нужен стаффинг
@@ -645,120 +636,92 @@ namespace Mcudrv
 			__interrupt static void RxISR()
 			{
 				using namespace Uarts;
-				bool error = Uart::IsEvent(static_cast<Events>(EvParityErr | EvFrameErr | EvNoiseErr | EvOverrunErr)); //чтение флагов ошибок
-				uint8_t data_byte = Uart::Regs()->DR;              //чтение данных
-
-				if(error)					//если обнаружены ошибки при приеме байта
-				{	
+				bool error = Uart::IsEvent(static_cast<Events>(EvParityErr | EvFrameErr | EvNoiseErr | EvOverrunErr));
+				uint8_t data_byte = Uart::Regs()->DR;
+				if(error) {
 					state = WAIT_FEND;		//ожидание нового пакета
 					cmd = C_ERR;			//рапортуем об ошибке
 					return;
 				}
-
-				if(data_byte == FEND)		//если обнаружено начало фрейма,
-				{
-					prev_byte = data_byte;	//то сохранение пре-байта,
-					crc.Reset(CRC_INIT);	//инициализация CRC,
-					state = ADDR;			//сброс указателя данных,
-					crc(data_byte);			//обновление CRC,
+				if(data_byte == FEND) {
+					prev_byte = data_byte;
+					crc.Reset(CRC_INIT);
+					state = ADDR;
+					crc(data_byte);
 					return;
 				}
-
-				if(state == WAIT_FEND)          //-----> если ожидание FEND,
-				{
-					return;				//то выход
+				if(state == WAIT_FEND) {
+					return;
 				}
-
 				char Pre = prev_byte;               //сохранение старого пре-байта
 				prev_byte = data_byte;              //обновление пре-байта
-				
-				if(Pre == FESC)                     //если пре-байт равен FESC,
-				{
+				if(Pre == FESC) {
 					if(data_byte == TFESC)            //а байт данных равен TFESC,
 						data_byte = FESC;               //то заменить его на FESC
 					else if(data_byte == TFEND)       //если байт данных равен TFEND,
 						data_byte = FEND;          //то заменить его на FEND
-					else
-					{
+					else {
 						state = WAIT_FEND;     //для всех других значений байта данных,
 						cmd = C_ERR;         //следующего за FESC, ошибка
 						return;
 					}
 				}
-				else
-				{
+				else {
 					if(data_byte == FESC)             //если байт данных равен FESC, он просто
 						return;                         //запоминается в пре-байте
 				}
-
-				switch(state)
-				{
+				switch(state) {
 				case ADDR:                     //-----> ожидание приема адреса
-					{
-						if(data_byte & 0x80)            //если бит 7 данных не равен нулю, то это адрес
-						{
-							data_byte = data_byte & 0x7F; //обнуляем бит 7, получаем истинный адрес
-							if(data_byte == 0 || data_byte == nodeAddr_nv || data_byte == groupAddr_nv) //если нулевой или верный адрес,
-							{
-								crc(data_byte); //то обновление CRC и
-								pdata.addr = data_byte;
-								state = CMD;       //переходим к приему команды
-								break;
-							}
-							state = WAIT_FEND;        //адрес не совпал, ожидание нового пакета
+					if(data_byte & 0x80) {
+						crc(data_byte); //то обновление CRC и
+						data_byte &= 0x7F; //обнуляем бит 7, получаем истинный адрес
+						if(data_byte == 0 || data_byte == nodeAddr_nv || data_byte == groupAddr_nv) {
+							pdata.addr = data_byte;
+							state = CMD;       //переходим к приему команды
 							break;
 						}
-						else pdata.addr = 0;	//если бит 7 данных равен нулю, то
-						state = CMD;					//сразу переходим к приему команды
+						state = WAIT_FEND;        //адрес не совпал, ожидание нового пакета
+						break;
 					}
+					else pdata.addr = 0;	//если бит 7 данных равен нулю, то
+					state = CMD;					//сразу переходим к приему команды
 				case CMD:                      //-----> ожидание приема команды
-					{
-						if(data_byte & 0x80)            //проверка бита 7 данных
-						{
-							state = WAIT_FEND;        //если бит 7 не равен нулю,
-							cmd = C_ERR;            //то ошибка
-							break;
-						}
-						pdata.cmd = data_byte;          //сохранение команды
-						crc(data_byte);				//обновление CRC
-						state = NBT;           //переходим к приему количества байт
+					if(data_byte & 0x80) {
+						state = WAIT_FEND;        //если бит 7 не равен нулю,
+						cmd = C_ERR;            //то ошибка
 						break;
 					}
-				case NBT:					//-----> ожидание приема количества байт
-					{
-						if(data_byte > WAKEDATABUFSIZE)	//если количество байт > bufsize,
-						{
-							state = WAIT_FEND;
-							cmd = C_ERR;		//то ошибка
-							break;
-						}
-						pdata.n = data_byte;
-						crc(data_byte);		//обновление CRC
-						ptr = 0;			//обнуляем указатель данных
-						state = DATA;		//переходим к приему данных
+					pdata.cmd = data_byte;          //сохранение команды
+					crc(data_byte);				//обновление CRC
+					state = NBT;           //переходим к приему количества байт
+					break;
+				case NBT:
+					if(data_byte > WAKEDATABUFSIZE) {
+						state = WAIT_FEND;
+						cmd = C_ERR;		//то ошибка
 						break;
 					}
-				case DATA:                     //-----> ожидание приема данных
-					{
-						uint8_t ptr_ = ptr;
-						if(ptr_ < pdata.n)       //если не все данные приняты,
-						{
-							pdata.buf[ptr++] = data_byte; //то сохранение байта данных,
-							crc(data_byte);  //обновление CRC
-							break;
-						}
-						if(data_byte != crc.GetResult())      //если приняты все данные, то проверка CRC
-						{
-							state = WAIT_FEND;		//если CRC не совпадает,
-							cmd = C_ERR;			//то ошибка
-							break;
-						}
-						state = WAIT_FEND;		//прием пакета завершен,
-						cmd = pdata.cmd;		//загрузка команды на выполнение
+					pdata.n = data_byte;
+					crc(data_byte);		//обновление CRC
+					ptr = 0;			//обнуляем указатель данных
+					state = DATA;		//переходим к приему данных
+					break;
+				case DATA:
+					uint8_t ptr_ = ptr;
+					if(ptr_ < pdata.n) {
+						pdata.buf[ptr++] = data_byte; //то сохранение байта данных,
+						crc(data_byte);  //обновление CRC
 						break;
 					}
+					if(data_byte != crc.GetResult()) {
+						state = WAIT_FEND;		//если CRC не совпадает,
+						cmd = C_ERR;			//то ошибка
+						break;
+					}
+					state = WAIT_FEND;		//прием пакета завершен,
+					cmd = pdata.cmd;		//загрузка команды на выполнение
+					break;
 				}
-
 			}
 		};
 
@@ -766,12 +729,12 @@ namespace Mcudrv
 				 Uarts::BaudRate baud,
 				 typename DEpin,
 				 Mode mode>
-		volatile uint8_t Wake<moduleList, baud, DEpin, mode>::nodeAddr_nv = 127;
+		volatile uint8_t Wake<moduleList, baud, DEpin, mode>::nodeAddr_nv;// = 127;
 		template<typename moduleList,
 				 Uarts::BaudRate baud,
 				 typename DEpin,
 				 Mode mode>
-		volatile uint8_t Wake<moduleList, baud, DEpin, mode>::groupAddr_nv = 95;
+		volatile uint8_t Wake<moduleList, baud, DEpin, mode>::groupAddr_nv;// = 95;
 		template<typename moduleList,
 				 Uarts::BaudRate baud,
 				 typename DEpin,

@@ -1,5 +1,4 @@
 #pragma once
-#include <cstring>
 
 #include "wake_base.h"
 #include "gpio.h"
@@ -23,7 +22,7 @@ namespace Mcudrv
 		enum
 		{
 			TwoChannels = false,
-			FanControl = true
+			FanControl = false
 		};
 	};
 
@@ -92,13 +91,13 @@ namespace Mcudrv
 		#pragma inline=forced
 		static void SetCh1()
 		{
-			using namespace T2;
+			using namespace T1;
 			static uint8_t br = state_nv.ch[Ch1];
 			if(br < curState.ch[Ch1])
 				++br;
 			else if(br > curState.ch[Ch1])
 				--br;
-			Timer2::WriteCompareByte<T2::Ch3>(br < ledLinear[0] ? br : ledLinear[br - ledLinear[0]]);
+			Timer1::WriteCompareByte<Ch3>(br < ledLinear[0] ? br : ledLinear[br - ledLinear[0]]);
 		}
 		#pragma inline=forced
 		static void SetCh2(stdx::Int2Type<true>)
@@ -116,24 +115,20 @@ namespace Mcudrv
 		#pragma inline=forced
 		static void UpdIRQ()	//Soft Dimming
 		{
+//			if(T1::Timer1::CheckIntStatus(T1::IRQ_Update)) {
+//				T1::Timer1::ClearIntFlag(T1::IRQ_Update);
+			SetCh1();
+			SetCh2(stdx::Int2Type<Features::TwoChannels>());
 			using namespace T2;
-			if(Timer2::CheckIntStatus(IRQ_Update))
-			{
-				Timer2::ClearIntFlag(IRQ_Update);
-				SetCh1();
-				SetCh2(stdx::Int2Type<Features::TwoChannels>());
-				if(Features::FanControl)
-				{
-					if(Timer2::ReadCompareByte<T2::Ch1>() < curState.fanSpeed)
-					{
-						Timer2::GetCompareByte<T2::Ch1>()++;
-					}
-					else if(Timer2::ReadCompareByte<T2::Ch1>() > curState.fanSpeed)
-					{
-						Timer2::GetCompareByte<T2::Ch1>()--;
-					}
+			if(Features::FanControl) {
+				if(Timer2::ReadCompareByte<T2::Ch1>() < curState.fanSpeed) {
+					Timer2::GetCompareByte<T2::Ch1>()++;
+				}
+				else if(Timer2::ReadCompareByte<T2::Ch1>() > curState.fanSpeed) {
+					Timer2::GetCompareByte<T2::Ch1>()--;
 				}
 			}
+//		}
 		}
 	public:
 		enum
@@ -144,23 +139,19 @@ namespace Mcudrv
 		#pragma inline=forced
 		static void Init()
 		{
-			using namespace T2;
-			static const ChannelCfgOut channelConfig = ChannelCfgOut(Out_PWM_Mode1 | Out_PreloadEnable);
-			Pa3::SetConfig<GpioBase::Out_PushPull_fast>();
-			Timer2::Init(Div_16, Cfg(ARPE | CEN));
-			Timer2::WriteAutoReload(255);			//Fcpu/16/256 ~= 490Hz for 2 MHz
-			Timer2::SetChannelCfg<T2::Ch3, Output, channelConfig>();
-			Timer2::ChannelEnable<T2::Ch3>();
-			Pd3::SetConfig<GpioBase::Out_PushPull_fast>();
-			if(Features::TwoChannels)
 			{
-				Timer2::SetChannelCfg<T2::Ch2, Output, channelConfig>();
-				Timer2::ChannelEnable<T2::Ch2>();
+				using namespace T1;
+				Pc3::SetConfig<GpioBase::Out_PushPull_fast>();
+				Timer1::Init(8, Cfg(ARPE | CEN));
+				Timer1::WriteAutoReload(255);			//Fcpu/8/256 ~= 980Hz for 2 MHz
+				Timer1::SetChannelCfg<Ch3, Output, ChannelCfgOut(Out_PWM_Mode1 | Out_PreloadEnable)>();
+				Timer1::ChannelEnable<Ch3>();
 			}
 			if(Features::FanControl)
 			{
+				using namespace T2;
 				Pd4::SetConfig<GpioBase::Out_PushPull_fast>();
-				Timer2::SetChannelCfg<T2::Ch1, Output, channelConfig>();
+				Timer2::SetChannelCfg<T2::Ch1, Output, ChannelCfgOut(Out_PWM_Mode1 | Out_PreloadEnable)>();
 				Timer2::ChannelEnable<T2::Ch1>();
 			}
 			OpTime::SetTimerCallback(UpdIRQ);
@@ -335,7 +326,7 @@ namespace Mcudrv
 		static void SaveState()
 		{
 			using namespace Mem;
-			if (state_nv.Data != curState.Data) //Only if changed
+			if(state_nv.Data != curState.Data) //Only if changed
 			{
 				Unlock<Eeprom>();
 				if(IsUnlocked<Eeprom>())
