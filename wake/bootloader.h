@@ -199,14 +199,10 @@ namespace Mcudrv {
 					*memPtr_++ = *((*data)++);
 				}
 #if defined(STM8S105)
-				if (MemType == FLASH_MEMTYPE_DATA)
-				{
-					u16 timeout = (u16)0x6000;
+				if((uint16_t)memPtr_ > FLASH_START) {
 					/* Waiting until High voltage flag is cleared*/
-					while ((FLASH->IAPSR & 0x40) != 0x00 || (timeout == 0x00))
-					{
-						timeout--;
-					}
+					while(FLASH->IAPSR & 0x40)
+						;
 				}
 #endif /* STM8S105 */
 			}
