@@ -1,5 +1,4 @@
 #pragma once
-#include <cstring>
 
 #include "wake_base.h"
 #include "gpio.h"
