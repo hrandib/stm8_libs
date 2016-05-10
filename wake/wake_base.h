@@ -342,14 +342,14 @@ namespace Mcudrv
 						pdata.buf[1] = tempAddr;
 						if(tempAddr != (nodeOrGroup ? nodeAddr_nv : groupAddr_nv)) //no write if address equal
 						{
-							Unlock<Eeprom>();
-							if (IsUnlocked<Eeprom>())
+							Unlock(Eeprom);
+							if (IsUnlocked(Eeprom))
 							{
 								if(nodeOrGroup) nodeAddr_nv = tempAddr;
 								else groupAddr_nv = tempAddr;
 							}
 							else pdata.buf[0] = ERR_EEPROMUNLOCK;
-							Lock<Eeprom>();
+							Lock(Eeprom);
 						}
 					}
 					else
@@ -393,6 +393,14 @@ namespace Mcudrv
 				Uart::template Init<Cfg(Uarts::DefaultCfg | (Cfg)SingleWireMode), baud>();
 				DriverEnable::template SetConfig<GpioBase::Out_PushPull_fast>();
 				DriverEnable::Clear();
+		//validate node address saved in eeprom
+				if(!nodeAddr_nv || nodeAddr_nv > 127) {
+					Mem::Unlock(Mem::Eeprom);
+					if(Mem::IsUnlocked(Mem::Eeprom)) {
+						nodeAddr_nv = 127;
+						Mem::Lock(Mem::Eeprom);
+					}
+				}
 				moduleList::Init();
 				OpTime::Init();
 				Wdg::Iwdg::Enable(Wdg::P_1s);
