@@ -198,7 +198,7 @@ namespace Mcudrv {
 				for(u16 Count = 0; Count < BLOCK_SIZE; ++Count) {
 					*memPtr_++ = *((*data)++);
 				}
-#if defined(STM8S105)
+#if defined(STM8S105) && 0
 				if((uint16_t)memPtr_ > FLASH_START) {
 					/* Waiting until High voltage flag is cleared*/
 					while(FLASH->IAPSR & 0x40)
@@ -272,8 +272,9 @@ namespace Mcudrv {
 						;
 					DataCount--;
 				}
+				packet_.n = 3;
 				packet_.buf[0] = ERR_NO;
-				packet_.n = 1;
+				*(uint16_t*)&packet_.buf[1] = (uint16_t)memPtr_;
 			}
 			FORCEINLINE static void SetPosition()
 			{
@@ -333,7 +334,7 @@ namespace Mcudrv {
 					packet_.buf[i + BUF_OFFSET] = *memPtr_++;
 				}
 				packet_.buf[0] = ERR_NO;
-				*(uint16_t*)&packet_.buf[1] = (uint16_t)memPtr_ -
+				*(uint16_t*)&packet_.buf[1] = (uint16_t)memPtr_;// - \
 																			(memEnd == Traits::FlashEnd ? Traits::FlashStart : Traits::EepromStart);
 				packet_.n = length + BUF_OFFSET;
 			}
