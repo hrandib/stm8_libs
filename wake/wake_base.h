@@ -132,7 +132,7 @@ namespace Mcudrv
 		{
 			DefaultADDR = 127,
 			DefaultGroupADDR = 95,
-			REBOOT_KEY = 0xCB47ED91,		// Host should use big endian format
+			REBOOT_KEY = 0xCB47ED91U,		// Host should use big endian format
 			CRC_INIT = 0xDE,
 			FEND = 0xC0,    //Frame END
 			FESC = 0xDB,    //Frame ESCape

@@ -180,54 +180,54 @@ namespace Mcudrv
 			static void Init(const uint16_t divider, const Cfg config = Default)
 			{
 				TIM1->PSCRH = (divider - 1) >> 8UL;
-				TIM1->PSCRL = divider - 1;
-				TIM1->CR1 = config;
+				TIM1->PSCRL = (uint8_t)(divider - 1);
+				TIM1->CR1 = (uint8_t)config;
 				TIM1->CR2 = config >> 8u;
 				TIM1->BKR |= TIM1_BKR_MOE;
 			}
 
-			#pragma inline=forced
+			FORCEINLINE
 			static void Enable()
 			{
 				TIM1->CR1 |= TIM1_CR1_CEN;
 			}
-			#pragma inline=forced
+			FORCEINLINE
 			static void Disable()
 			{
 				TIM1->CR1 &= ~TIM1_CR1_CEN;
 			}
-			#pragma inline=forced
+			FORCEINLINE
 			static void EnableInterrupt(const Ints mask)
 			{
 				TIM1->IER |= mask;
 			}
-			#pragma inline=forced
+			FORCEINLINE
 			static void DisableInterrupt(const Ints mask)
 			{
 				TIM1->IER &= ~mask;
 			}
-			#pragma inline=forced
+			FORCEINLINE
 			static bool CheckIntStatus(const Ints flag)
 			{
 				return TIM1->SR1 & flag;
 			}
-			#pragma inline=forced
+			FORCEINLINE
 			static void ClearIntFlag(const Ints flag)
 			{
 				TIM1->SR1 &= ~flag;
 			}
-			#pragma inline=forced
+			FORCEINLINE
 			static void TriggerEvent(const Events ev)
 			{
 				TIM1->EGR |= ev;
 			}
 			
-			#pragma inline=forced
+			FORCEINLINE
 			static void WriteCounter(const uint16_t c)	//Need to stop Timer
 			{
 	//			Disable();
 				TIM1->CNTRH = c >> 8;
-				TIM1->CNTRL = c;
+				TIM1->CNTRL = (uint8_t)c;
 	//			Enable();
 			}
 
@@ -241,14 +241,14 @@ namespace Mcudrv
 			}
 			#pragma diag_default=Pe940
 			
-			#pragma inline=forced
+			FORCEINLINE
 			static void WriteAutoReload(const uint16_t c)
 			{
 				TIM1->ARRH = c >> 8;
-				TIM1->ARRL = c;
+				TIM1->ARRL = (uint8_t)c;
 			}
 
-			#pragma inline=forced
+			FORCEINLINE
 			template <Channel Ch, ChannelType type, ChannelCfgIn cfg>
 			static void SetChannelCfg()
 			{
@@ -260,7 +260,7 @@ namespace Mcudrv
 				else *reinterpret_cast<volatile uint8_t*>(&TIM1->CCMR1 + Ch) = static_cast<uint8_t>(type) | static_cast<uint8_t>(cfg);
 			}
 
-			#pragma inline=forced
+			FORCEINLINE
 			template <Channel Ch, ChannelType type, ChannelCfgOut cfg>
 			static void SetChannelCfg()
 			{
@@ -272,7 +272,7 @@ namespace Mcudrv
 				else *reinterpret_cast<volatile uint8_t*>(&TIM1->CCMR1 + Ch) = static_cast<uint8_t>(type) | static_cast<uint8_t>(cfg);
 			}
 			
-			#pragma inline=forced
+			FORCEINLINE
 			template <Channel Ch, ActiveLevel level = ActiveHigh>
 			static void ChannelEnable()
 			{
@@ -287,7 +287,7 @@ namespace Mcudrv
 				if (Ch == Ch1) TIM1->CCER1 |= TIM1_CCER1_CC1E | (level << 1);
 			}
 
-			#pragma inline=forced
+			FORCEINLINE
 			template <Channel Ch>
 			static void ChannelDisable()
 			{
@@ -298,7 +298,7 @@ namespace Mcudrv
 				if (Ch & Ch1 == Ch1) TIM1->CCER1 &= ~0x0F;
 			}
 			
-			#pragma inline=forced
+			FORCEINLINE
 			template <Channel Ch, ActiveLevel level = ActiveHigh>
 			static void ChannelEnableComplementary()
 			{
@@ -308,7 +308,7 @@ namespace Mcudrv
 				if (Ch & Ch1 == Ch1) TIM1->CCER1 |= TIM1_CCER1_CC1NE | (level << 3);
 			}
  		
-			#pragma inline=forced
+			FORCEINLINE
 			template<Channel Ch>
 			static void WriteCompareWord(const uint16_t c)
 			{
@@ -316,35 +316,35 @@ namespace Mcudrv
 				*reinterpret_cast<volatile uint8_t*>(&TIM1->CCR1L + Ch * 2) = c;
 			}
 
-			#pragma inline=forced
+			FORCEINLINE
 			template<Channel Ch>
 			static void WriteCompareByte(const uint8_t c)
 			{
 				*reinterpret_cast<volatile uint8_t*>(&TIM1->CCR1L + Ch * 2) = c;
 			}
 
-			#pragma inline=forced
+			FORCEINLINE
 			template<Channel Ch>
 			static uint16_t ReadCompareWord()
 			{
 				return *reinterpret_cast<volatile uint16_t*>(&TIM1->CCR1H + Ch * 2);
 			}
 
-			#pragma inline=forced
+			FORCEINLINE
 			template<Channel Ch>
 			static uint8_t ReadCompareByte()
 			{
 				return *reinterpret_cast<volatile uint8_t*>(&TIM1->CCR1L + Ch * 2);
 			}
 
-			#pragma inline=forced
+			FORCEINLINE
 			template<Channel Ch>
 			static volatile uint16_t& GetCompareWord()
 			{
 				return *reinterpret_cast<volatile uint16_t*>(&TIM1->CCR1H + Ch * 2);
 			}
 
-			#pragma inline=forced
+			FORCEINLINE
 			template<Channel Ch>
 			static volatile uint8_t& GetCompareByte()
 			{
@@ -470,7 +470,7 @@ namespace Mcudrv
 			private:
 				typedef typename TypeOfTimer<BaseAddr>::type TIM_TypeDef;
 
-				#pragma inline=forced
+				FORCEINLINE
 				static TIM_TypeDef* Regs()
 				{
 					return reinterpret_cast<TIM_TypeDef*>(BaseAddr);
@@ -482,37 +482,37 @@ namespace Mcudrv
 					Regs()->CR1 = config;
 				}
 
-				#pragma inline=forced
+				FORCEINLINE
 				static void Enable()
 				{
 					Regs()->CR1 |= TIM2_CR1_CEN;
 				}
-				#pragma inline=forced
+				FORCEINLINE
 				static void Disable()
 				{
 					Regs()->CR1 &= ~TIM2_CR1_CEN;
 				}
-				#pragma inline=forced
+				FORCEINLINE
 				static void EnableInterrupt(const Ints mask)
 				{
 					Regs()->IER |= mask;
 				}
-				#pragma inline=forced
+				FORCEINLINE
 				static void DisableInterrupt(const Ints mask)
 				{
 					Regs()->IER &= ~mask;
 				}
-				#pragma inline=forced
+				FORCEINLINE
 				static void TriggerEvent(const Events ev)
 				{
 					Regs()->EGR |= ev;
 				}
-				#pragma inline=forced
+				FORCEINLINE
 				static bool CheckIntStatus(const Ints flag)
 				{
 					return Regs()->SR1 & flag;
 				}
-				#pragma inline=forced
+				FORCEINLINE
 				static void ClearIntFlag(const Ints flag)
 				{
 					Regs()->SR1 &= ~flag;
@@ -536,7 +536,7 @@ namespace Mcudrv
 					Regs()->ARRL = c;
 				}
 
-				#pragma inline=forced
+				FORCEINLINE
 				template <Channel Ch, ChannelType type, ChannelCfgIn cfg>
 				static void SetChannelCfg()
 				{
@@ -550,7 +550,7 @@ namespace Mcudrv
 					else *reinterpret_cast<volatile uint8_t*>(&Regs()->CCMR1 + Ch) = static_cast<uint8_t>(type) | static_cast<uint8_t>(cfg);
 				}
 
-				#pragma inline=forced
+				FORCEINLINE
 				template <Channel Ch, ChannelType type, ChannelCfgOut cfg>
 				static void SetChannelCfg()
 				{
@@ -564,7 +564,7 @@ namespace Mcudrv
 					else *reinterpret_cast<volatile uint8_t*>(&Regs()->CCMR1 + Ch) = static_cast<uint8_t>(type) | static_cast<uint8_t>(cfg);
 				}
 
-				#pragma inline=forced
+				FORCEINLINE
 				template <Channel Ch, ActiveLevel level = ActiveHigh>
 				static void ChannelEnable()
 				{
@@ -579,7 +579,7 @@ namespace Mcudrv
 					if (Ch == Ch1) Regs()->CCER1 |= TIM2_CCER1_CC1E | (level << 1);
 				}
 
-				#pragma inline=forced
+				FORCEINLINE
 				template <Channel Ch>
 				static void ChannelDisable()
 				{
@@ -594,7 +594,7 @@ namespace Mcudrv
 					if (Ch == Ch1) Regs()->CCER1 &= ~0x0F;
 				}
 
-				#pragma inline=forced
+				FORCEINLINE
 				template<Channel Ch>
 				static void WriteCompareWord(const uint16_t c)
 				{
@@ -603,7 +603,7 @@ namespace Mcudrv
 					*reinterpret_cast<volatile uint8_t*>(&Regs()->CCR1L + Ch * 2) = c;
 				}
 
-				#pragma inline=forced
+				FORCEINLINE
 				template<Channel Ch>
 				static void WriteCompareByte(const uint8_t c)
 				{
@@ -611,7 +611,7 @@ namespace Mcudrv
 					*reinterpret_cast<volatile uint8_t*>(&Regs()->CCR1L + Ch * 2) = c;
 				}
 
-				#pragma inline=forced
+				FORCEINLINE
 				template<Channel Ch>
 				static uint16_t ReadCompareWord()
 				{
@@ -619,7 +619,7 @@ namespace Mcudrv
 					return *reinterpret_cast<volatile uint16_t*>(&Regs()->CCR1H + Ch * 2);
 				}
 
-				#pragma inline=forced
+				FORCEINLINE
 				template<Channel Ch>
 				static uint8_t ReadCompareByte()
 				{
@@ -627,7 +627,7 @@ namespace Mcudrv
 					return *reinterpret_cast<volatile uint8_t*>(&Regs()->CCR1L + Ch * 2);
 				}
 
-				#pragma inline=forced
+				FORCEINLINE
 				template<Channel Ch>
 				static volatile uint16_t& GetCompareWord()
 				{
@@ -635,7 +635,7 @@ namespace Mcudrv
 					return *reinterpret_cast<volatile uint16_t*>(&Regs()->CCR1H + Ch * 2);
 				}
 
-				#pragma inline=forced
+				FORCEINLINE
 				template<Channel Ch>
 				static volatile uint8_t& GetCompareByte()
 				{
@@ -677,53 +677,53 @@ namespace Mcudrv
 		class Timer4
 		{
 		public:
-			#pragma inline=forced
+			FORCEINLINE
 			static void Init(const Div Divider, const Cfg Config)
 			{
 				TIM4->PSCR = Divider;
 				TIM4->CR1 = Config;
 			}
-			#pragma inline=forced
+			FORCEINLINE
 			static void Enable()
 			{
 				TIM4->CR1 |= TIM4_CR1_CEN;
 			}
-			#pragma inline=forced
+			FORCEINLINE
 			static void Disable()
 			{
 				TIM4->CR1 &= ~TIM4_CR1_CEN;
 			}
-			#pragma inline=forced
+			FORCEINLINE
 			static void ResetCounter()
 			{
 				TIM4->CNTR = 0;
 			}
-			#pragma inline=forced
+			FORCEINLINE
 			static void EnableInterrupt() // Only one interrupt on that vector (Update)
 			{
 				TIM4->IER = TIM4_IER_UIE;
 			}
-			#pragma inline=forced
+			FORCEINLINE
 			static void DisableInterrupt()
 			{
 				TIM4->IER = 0;
 			}
-			#pragma inline=forced
+			FORCEINLINE
 			static bool CheckIntStatus()		
 			{
 				return TIM4->SR1;
 			}
-			#pragma inline=forced
+			FORCEINLINE
 			static void ClearIntFlag()
 			{
 				TIM4->SR1 = 0;
 			}
-			#pragma inline=forced
+			FORCEINLINE
 			static void WriteCounter(uint8_t c)
 			{
 				TIM4->CNTR = c;
 			}
-			#pragma inline=forced
+			FORCEINLINE
 			static uint8_t ReadCounter()
 			{
 				return TIM4->CNTR;
@@ -751,7 +751,7 @@ namespace Mcudrv
 		class Iwdg
 		{
 		public:
-			#pragma inline=forced
+			FORCEINLINE
 			static void Enable(const Period period)
 			{
 				IWDG->KR = 0xCC;
@@ -759,7 +759,7 @@ namespace Mcudrv
 				IWDG->RLR = 0xFF;
 				IWDG->PR = period;
 			}
-			#pragma inline=forced
+			FORCEINLINE
 			static void Refresh()
 			{
 				IWDG->KR = 0xAA;

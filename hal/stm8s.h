@@ -138,7 +138,9 @@
   #define MEMCPY memcpy
  #endif /* STM8S208 or STM8S207 or STM8S007 or STM8AF62Ax or STM8AF52Ax */ 
 #else /*_IAR_*/
+#ifndef FORCEINLINE
  #define FORCEINLINE _Pragma("inline=forced")
+#endif
  #define FAR  __far
  #define NEAR __near
  #define TINY __tiny

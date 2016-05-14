@@ -4,13 +4,11 @@
 #include "gpio.h"
 #include "timers.h"
 
-//		MBI6651
-//	First Channel,	Fan Control
-//  PC3(TIM1_CH3)	PD4(TIM2_CH1)
-//		NCP3066
-//	First Channel,				Fan Control
-//	PA3(TIM2_CH3) - On/Off		PD4(TIM2_CH1)
-//  PD3(TIM2_CH2) - driver NFB
+/*
+ * PA3 - Bypass power switch
+ * PD3 - Brightness PWM (TIM2 CH2)
+ * PD4 - Fan control PWM (TIM2 CH1)
+ */
 
 namespace Mcudrv
 {
@@ -22,37 +20,20 @@ namespace Mcudrv
 		enum
 		{
 			TwoChannels = false,
-			FanControl = false
+			FanControl = true
 		};
 	};
 
-	static const uint8_t ledLinear[101] = {
-				0,
-				3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-				15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-				26, 27, 28, 29,
-				30, 32, 34, 36, 38, 40, 42, 44,
-        46, 48, 50, 52, 54, 56, 58, 60, 62, 64,
-        66, 68, 70, 72, 74, 76, 78, 80, 82, 84,
-        86, 89, 92, 95, 98, 101, 104, 107, 110,	113,
-        116, 119, 122, 125, 128, 131, 134, 137, 140, 143,
-        147, 151, 155, 159, 163, 167, 171, 175, 179, 183,
-        187, 191, 195, 199, 204, 209, 214, 219, 224, 229,
-				234, 239, 244, 249, 255
-	};
-
-//	{	46, 48,	50, 52, 54, 56, 58, 60, 62, 64,
-//		66, 68, 70, 72, 74,	76, 78, 80, 83, 86,
-//		89, 92, 95, 98, 101, 104, 107, 110, 113, 117,
-//		121, 125, 129, 133, 137, 141, 145, 150, 155, 160,
-//		165, 170, 175, 180,	186, 192, 198, 204, 210, 217,
-//		224, 231, 238, 245, 255
-//	};
 
 	template<typename Features = LedDriverDefaultFeatures>
 	class LedDriver : WakeData
 	{
 	private:
+		enum {
+			PWM_MAX = 0x7F,
+			FAN_START_VALUE = 20
+		};
+		typedef Pa3 PowerSwitch;
 		union state_t
 		{
 			struct
@@ -81,27 +62,48 @@ namespace Mcudrv
 		static uint8_t GetFanSpeed()
 		{
 			uint8_t tmp = curState.fanSpeed;
-			return tmp > 20 ? (tmp - 20) / 2 : 0;
+			if(tmp == 100 + FAN_START_VALUE) {
+				tmp = 100;
+			}
+			else if(tmp > FAN_START_VALUE) {
+				tmp -= FAN_START_VALUE;
+			}
+			else {
+				tmp = 0;
+			}
+
+			return 0;
 		}
 		static void SetFanSpeed(uint8_t speed)
 		{
-			if(speed > 100) speed = 255;
-			else if (speed > 0)
-			{
-				speed = speed * 2 + 20;
+			if(speed >= 100) {
+				speed = PWM_MAX;
+			}
+			else if (speed > 0)	{
+				speed = speed + 20;
 			}
 			curState.fanSpeed = speed;
 		}
 		#pragma inline=forced
 		static void SetCh1()
 		{
-			using namespace T1;
+			using namespace T2;
 			static uint8_t br = state_nv.ch[Ch1];
 			if(br < curState.ch[Ch1])
 				++br;
 			else if(br > curState.ch[Ch1])
 				--br;
-			Timer1::WriteCompareByte<Ch3>(ledLinear[br]);
+			uint8_t linBr;
+			if(br >= 100) {
+				linBr = 127;
+			}
+			else if(br > 76) {
+				linBr = (br - 38) * 2;
+			}
+			else {
+				linBr = br;
+			}
+			Timer2::WriteCompareByte<T2::Ch2>(linBr);
 		}
 		#pragma inline=forced
 		static void SetCh2(stdx::Int2Type<true>)
@@ -112,15 +114,13 @@ namespace Mcudrv
 				++br;
 			else if(br > curState.ch[Ch2])
 				--br;
-			Timer2::WriteCompareByte<T2::Ch2>(br < ledLinear[0] ? br : ledLinear[br - ledLinear[0]]);
+			Timer2::WriteCompareByte<T2::Ch2>(br);
 		}
 		#pragma inline=forced
 		static void SetCh2(stdx::Int2Type<false>) { }
 		#pragma inline=forced
 		static void UpdIRQ()	//Soft Dimming
 		{
-//			if(T1::Timer1::CheckIntStatus(T1::IRQ_Update)) {
-//				T1::Timer1::ClearIntFlag(T1::IRQ_Update);
 			SetCh1();
 			SetCh2(stdx::Int2Type<Features::TwoChannels>());
 			using namespace T2;
@@ -132,7 +132,6 @@ namespace Mcudrv
 					Timer2::GetCompareByte<T2::Ch1>()--;
 				}
 			}
-//		}
 		}
 	public:
 		enum
@@ -143,17 +142,13 @@ namespace Mcudrv
 		#pragma inline=forced
 		static void Init()
 		{
-			{
-				using namespace T1;
-				Pc3::SetConfig<GpioBase::Out_PushPull_fast>();
-				Timer1::Init(8, Cfg(ARPE | CEN));
-				Timer1::WriteAutoReload(255);			//Fcpu/8/256 ~= 980Hz for 2 MHz
-				Timer1::SetChannelCfg<Ch3, Output, ChannelCfgOut(Out_PWM_Mode1 | Out_PreloadEnable)>();
-				Timer1::ChannelEnable<Ch3>();
-			}
-			if(Features::FanControl)
-			{
-				using namespace T2;
+			using namespace T2;
+			Timer2::Init(Div_1, Cfg(ARPE | CEN));
+			Timer2::WriteAutoReload(0x7F);
+			Pd3::SetConfig<GpioBase::Out_PushPull_fast>();
+			Timer2::SetChannelCfg<T2::Ch2, Output, ChannelCfgOut(Out_PWM_Mode1 | Out_PreloadEnable)>();
+			Timer2::ChannelEnable<T2::Ch2>();
+			if(Features::FanControl) {
 				Pd4::SetConfig<GpioBase::Out_PushPull_fast>();
 				Timer2::SetChannelCfg<T2::Ch1, Output, ChannelCfgOut(Out_PWM_Mode1 | Out_PreloadEnable)>();
 				Timer2::ChannelEnable<T2::Ch1>();
@@ -369,11 +364,11 @@ namespace Mcudrv
 	};
 
 	template<typename Features>
-	LedDriver<Features>::state_t LedDriver<Features>::state_nv;
+	typename LedDriver<Features>::state_t LedDriver<Features>::state_nv;
 	template<typename Features>
-	LedDriver<Features>::state_t LedDriver<Features>::curState = state_nv;
+	typename LedDriver<Features>::state_t LedDriver<Features>::curState = state_nv;
 	template<typename Features>
-	LedDriver<Features>::state_t LedDriver<Features>::onState;
+	typename LedDriver<Features>::state_t LedDriver<Features>::onState;
 
   } //Ldrv
 } //Mcudrv

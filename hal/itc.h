@@ -17,10 +17,12 @@ namespace Mcudrv
 			Emc = 1U << 4
 		};
 
-		static inline void Reset()		//FIXME: Not tested yet
+		FORCEINLINE
+		static inline void Reset()
 		{
 			WWDG->CR = WWDG_CR_WDGA;
 		}
+		FORCEINLINE
 		static inline ResetReason GetResetReason()
 		{
 			return (ResetReason)RST->SR;
@@ -34,13 +36,13 @@ namespace Mcudrv
 			prioLevel_2_middle = 0x00,
 			prioLevel_3_high = 0x03
 		};
-		#pragma inline=forced
-		void SetPriority(uint8_t vector, const Priority priority)
+		FORCEINLINE
+		void inline SetPriority(uint8_t vector, const Priority priority)
 		{
 			vector -= 2;
 			volatile uint8_t* reg = &((volatile uint8_t*)ITC)[vector / 4];
 			const uint8_t position = (vector % 4) * 2;
-			*reg = (*reg & ~(0x03 << position)) | priority << position;
+			*reg = (uint8_t)((*reg & ~(0x03 << position)) | priority << position);
 		}
 
 	}//Itc

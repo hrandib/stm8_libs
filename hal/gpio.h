@@ -200,28 +200,28 @@ namespace Mcudrv
 		static void Write()
 		{	}
 		#pragma inline=forced
-		static void Write(uint8_t value)
+		static void Write(uint8_t /*value*/)
 		{	}
 		#pragma inline=forced
 		template <uint8_t mask>
 		static void Set()
 		{	}
 		#pragma inline=forced
-		static void Set(uint8_t mask)
+		static void Set(uint8_t /*mask*/)
 		{	}
 		#pragma inline=forced
 		template <uint8_t mask>
 		static void Clear()
 		{	}
 		#pragma inline=forced
-		static void Clear(uint8_t mask)
+		static void Clear(uint8_t /*mask*/)
 		{	}
 		#pragma inline=forced
 		template <uint8_t mask>
 		static void Toggle()
 		{	}
 		#pragma inline=forced
-		static void Toggle(uint8_t mask)
+		static void Toggle(uint8_t /*mask*/)
 		{	}
 		#pragma inline=forced
 		template<uint8_t clearmask, uint8_t setmask>

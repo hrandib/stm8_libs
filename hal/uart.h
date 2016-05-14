@@ -15,7 +15,6 @@ namespace Uarts
 
 	enum Cfg
 	{
-
 //		---=== UART CR1 ===---			
 
 //		ParityIntEnable = UART1_CR1_PIEN,
@@ -117,24 +116,23 @@ namespace Uarts
 		typedef Internal::Base<BaseAddr>::type BaseType;
 		typedef Internal::Base<BaseAddr>::TxPin TxPin;
 		typedef Internal::Base<BaseAddr>::RxPin RxPin;
-
-		#pragma inline=forced
+		FORCEINLINE
 		static BaseType* Regs()
 		{
 			return reinterpret_cast<BaseType*>(BaseAddr);
 		}
-		#pragma inline=forced
+		FORCEINLINE
 		template<Cfg config, BaudRate baud = 9600UL>
 		static void Init()
 		{
 			enum { Div = F_CPU / baud };
 			static_assert(Div <= __UINT16_T_MAX__ && Div > 0x0F, "UART divider not in range 16...65535");
 			static_assert(!(BaseAddr == UART2_BaseAddress && (static_cast<uint32_t>(config) >> 24) & UART1_CR5_HDSEL),
-						  "Single wire Halfduplex mode not available for UART2");
+										"Single wire Halfduplex mode not available for UART2");
 			Regs()->BRR2 = ((Div >> 8U) & 0xF0) | (Div & 0x0F);
 			Regs()->BRR1 = (Div >> 4U) & 0xFF;
 			Regs()->CR1 = static_cast<uint32_t>(config) & 0xFF;
-		//	Regs()->CR3 = (static_cast<uint32_t>(config) >> 16) & 0xFF; //Need for synchronuos communication and LIN
+	//	Regs()->CR3 = (static_cast<uint32_t>(config) >> 16) & 0xFF; //Need for synchronuos communication and LIN
 			Regs()->CR5 = (static_cast<uint32_t>(config) >> 24) & 0xFF;
 			Regs()->CR2 = (static_cast<uint32_t>(config) >> 8) & 0xFF;
 
@@ -146,27 +144,24 @@ namespace Uarts
 				RxPin::SetConfig<GpioBase::In_Pullup>();
 			}
 		}
-
-		#pragma inline=forced
+		FORCEINLINE
 		static void SetNodeAddress(const uint8_t addr)	// Incompatible With LIN mode
 		{
 			Regs()->CR4 = addr;
 		}
-
-		#pragma inline=forced
+		FORCEINLINE
 		static bool IsEvent(const Events event)
 		{
 			return Regs()->SR & event;
 		}
-		
-//		#pragma inline=forced
+//		FORCEINLINE
 //		static bool IsBusy()
 //		{
 //			return Regs()->CR2 & IrqTxEmpty;
 //		}
 
 		//Only for TX Complete and RX Not Empty events
-		#pragma inline=forced
+		FORCEINLINE
 		static void ClearEvent(const Events event)
 		{
 			if(event & EvTxComplete) {
@@ -174,15 +169,16 @@ namespace Uarts
 			}
 			if(event & EvRxne) {
 				uint8_t dummy = Uart::Regs()->DR;
+				(void)dummy;
 			}
 		}
 
-		#pragma inline=forced
+		FORCEINLINE
 		static void EnableInterrupt(const Irqs mask)
 		{
 			Regs()->CR2 |= mask;
 		}
-		#pragma inline=forced
+		FORCEINLINE
 		static void DisableInterrupt(const Irqs mask)
 		{
 			Regs()->CR2 &= ~mask;
@@ -232,7 +228,6 @@ namespace Uarts
 			return ch;
 		}
 	};
-
 	//class based on interrupts and circular buffer
 	template<uint16_t TxBufSize = 16, uint16_t RxBufSize = TxBufSize, typename DEpin = Nullpin>
 	class UartIrq : public Uart
@@ -249,7 +244,7 @@ namespace Uarts
 			RXBUFSIZE = RxBufSize
 		};
 
-		#pragma inline=forced
+		FORCEINLINE
 		template<Cfg config, BaudRate baud = 9600UL>
 		static void Init()
 		{
@@ -294,7 +289,7 @@ namespace Uarts
 			return true;
 		}
 
-		#pragma inline=forced
+		FORCEINLINE
 		template<typename T>
 		static void Putbuf(T *buf, uint8_t size)
 		{
@@ -306,7 +301,7 @@ namespace Uarts
 		{
 			Puts("\r\n");
 		}
-		#pragma inline=forced
+		FORCEINLINE
 		static bool Getch(uint8_t &c)
 		{
 			return rxbuf_.Read(c);
@@ -340,7 +335,7 @@ namespace Uarts
 #elif defined (STM8S105)
 			_Pragma(VECTOR_ID(UART2_R_RXNE_vector))
 #endif
-			__interrupt static void RxISR()
+		__interrupt static void RxISR()
 		{
 //			bool error = IsEvent(Events(EvParityErr | EvFrameErr | EvNoiseErr | EvOverrunErr)); //чтение флагов ошибок
 			uint8_t c = Regs()->DR;
@@ -381,7 +376,7 @@ namespace Uarts
 		{
 
 		}
-		#pragma inline=forced
+		FORCEINLINE
 		static void ISR()
 		{
 
