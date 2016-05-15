@@ -17,13 +17,13 @@ namespace Mcudrv
 
 	struct LedDriverDefaultFeatures
 	{
-		enum
-		{
+		enum {
 			TwoChannels = false,
 			FanControl = true
 		};
 	};
 
+//	typedef LedDriverDefaultFeatures Features;
 
 	template<typename Features = LedDriverDefaultFeatures>
 	class LedDriver : WakeData
@@ -31,21 +31,18 @@ namespace Mcudrv
 	private:
 		enum {
 			PWM_MAX = 0x7F,
-			FAN_START_VALUE = 20
+			FAN_START_VALUE = 15,
 		};
 		typedef Pa3 PowerSwitch;
-		union state_t
-		{
-			struct
-			{
+		union state_t {
+			struct {
 				uint8_t ch[2];
 				uint8_t fanSpeed;
 			};
 			uint32_t Data;
 		};
 		enum Ch { Ch1, Ch2 = Features::TwoChannels };
-		enum InstructionSet
-		{
+		enum InstructionSet {
 			C_GetState = 16,
 			C_GetBright = 16,
 			C_GetFan = 16,
@@ -61,18 +58,17 @@ namespace Mcudrv
 		static state_t curState, onState;
 		static uint8_t GetFanSpeed()
 		{
-			uint8_t tmp = curState.fanSpeed;
-			if(tmp == 100 + FAN_START_VALUE) {
-				tmp = 100;
+			uint8_t speed = curState.fanSpeed;
+			if(speed == PWM_MAX) {
+				speed = 100;
 			}
-			else if(tmp > FAN_START_VALUE) {
-				tmp -= FAN_START_VALUE;
+			else if(speed > FAN_START_VALUE) {
+				speed -= FAN_START_VALUE;
 			}
 			else {
-				tmp = 0;
+				speed = 0;
 			}
-
-			return 0;
+			return speed;
 		}
 		static void SetFanSpeed(uint8_t speed)
 		{
@@ -80,22 +76,26 @@ namespace Mcudrv
 				speed = PWM_MAX;
 			}
 			else if (speed > 0)	{
-				speed = speed + 20;
+				speed = speed + FAN_START_VALUE;
 			}
 			curState.fanSpeed = speed;
 		}
-		#pragma inline=forced
+		FORCEINLINE
 		static void SetCh1()
 		{
 			using namespace T2;
 			static uint8_t br = state_nv.ch[Ch1];
-			if(br < curState.ch[Ch1])
+			if(br < curState.ch[Ch1]) {
 				++br;
-			else if(br > curState.ch[Ch1])
+			}
+			else if(br > curState.ch[Ch1]) {
 				--br;
+				PowerSwitch::Clear();
+			}
 			uint8_t linBr;
 			if(br >= 100) {
-				linBr = 127;
+				//linBr = PWM_MAX;
+				PowerSwitch::Set();
 			}
 			else if(br > 76) {
 				linBr = (br - 38) * 2;
@@ -105,7 +105,7 @@ namespace Mcudrv
 			}
 			Timer2::WriteCompareByte<T2::Ch2>(linBr);
 		}
-		#pragma inline=forced
+		FORCEINLINE
 		static void SetCh2(stdx::Int2Type<true>)
 		{
 			using namespace T2;
@@ -116,9 +116,9 @@ namespace Mcudrv
 				--br;
 			Timer2::WriteCompareByte<T2::Ch2>(br);
 		}
-		#pragma inline=forced
+		FORCEINLINE
 		static void SetCh2(stdx::Int2Type<false>) { }
-		#pragma inline=forced
+		FORCEINLINE
 		static void UpdIRQ()	//Soft Dimming
 		{
 			SetCh1();
@@ -133,16 +133,48 @@ namespace Mcudrv
 				}
 			}
 		}
+		FORCEINLINE
+		static void SetBrightness(uint8_t br, const Ch ch = Ch1)
+		{
+			if(br > 100) br = 100;
+			curState.ch[ch] = br;
+		}
+		FORCEINLINE
+		static uint8_t GetBrightness(Ch ch = Ch1)
+		{
+			return curState.ch[ch];
+		}
+		static uint8_t IncBrightness(uint8_t step, Ch ch = Ch1)
+		{
+			uint8_t cur = GetBrightness(ch);
+			if(cur < 100)
+			{
+				step = step < 100 ? step : 100;
+				cur += step;
+				SetBrightness(cur, ch);
+			}
+			return cur;
+		}
+		static uint8_t DecBrightness(uint8_t step, Ch ch = Ch1)
+		{
+			uint8_t cur = GetBrightness(ch);
+			if(cur <= step) cur = 0;
+			else cur -= step;
+			SetBrightness(cur, ch);
+			return cur;
+		}
+
 	public:
 		enum
 		{
 			deviceMask = DevLedDriver,
 			features = Features::TwoChannels | Features::FanControl << 1UL
 		};
-		#pragma inline=forced
+		FORCEINLINE
 		static void Init()
 		{
 			using namespace T2;
+			PowerSwitch::SetConfig<GpioBase::Out_PushPull>();
 			Timer2::Init(Div_1, Cfg(ARPE | CEN));
 			Timer2::WriteAutoReload(0x7F);
 			Pd3::SetConfig<GpioBase::Out_PushPull_fast>();
@@ -155,7 +187,7 @@ namespace Mcudrv
 			}
 			OpTime::SetTimerCallback(UpdIRQ);
 		}
-		#pragma inline=forced
+		FORCEINLINE
 		static void Process()
 		{
 			switch(cmd) {
@@ -291,37 +323,7 @@ namespace Mcudrv
 				processedMask |= deviceMask;
 			}//switch
 		}
-
-		#pragma inline=forced
-		static void SetBrightness(uint8_t br, const Ch ch = Ch1)
-		{
-			if(br > 100) br = 100;
-			curState.ch[ch] = br;
-		}
-		#pragma inline=forced
-		static uint8_t GetBrightness(Ch ch = Ch1)
-		{
-			return curState.ch[ch];
-		}
-		static uint8_t IncBrightness(uint8_t step, Ch ch = Ch1)
-		{
-			uint8_t cur = GetBrightness(ch);
-			if(cur < 100)
-			{
-				step = step < 100 ? step : 100;
-				cur += step;
-				SetBrightness(cur, ch);
-			}
-			return cur;
-		}
-		static uint8_t DecBrightness(uint8_t step, Ch ch = Ch1)
-		{
-			uint8_t cur = GetBrightness(ch);
-			if(cur <= step) cur = 0;
-			else cur -= step;
-			SetBrightness(cur, ch);
-			return cur;
-		}
+		FORCEINLINE
 		static void SaveState()
 		{
 			using namespace Mem;
@@ -336,8 +338,7 @@ namespace Mcudrv
 				Lock<Eeprom>();
 			}
 		}
-
-		#pragma inline=forced
+		FORCEINLINE
 		static void On()
 		{
 			curState = onState;
@@ -349,14 +350,13 @@ namespace Mcudrv
 			if(Features::FanControl) onState.fanSpeed = curState.fanSpeed;
 			curState.Data = 0;
 		}
-		#pragma inline=forced
+		FORCEINLINE
 		static void ToggleOnOff()
 		{
 			if(!curState.Data) On();
 			else Off();
 		}
-
-		#pragma inline=forced
+		FORCEINLINE
 		static uint8_t GetDeviceFeatures(const uint8_t)
 		{
 			return features;
