@@ -2,8 +2,10 @@
 
 #include "pinlist.h"
 
+namespace Wk {
+
 template<typename Port>
-struct cRelays : Port
+struct Relays : Port
 {
 	static void Clear(uint8_t mask)
 	{
@@ -40,5 +42,6 @@ private:
 };
 
 template<typename Port>
-uint8_t cRelays<Port>::prevValue;
+uint8_t Relays<Port>::prevValue;
 
+}//Wk

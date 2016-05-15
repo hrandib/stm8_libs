@@ -1,15 +1,16 @@
 #pragma once
 #include <string.h>
-#define DEVICEINFO "Switch, V100, 600"  //размер буфера приема-передаче равен размеру этой строки
 
-#include "wake.h"
-#include "gpio.h"
+#include "wake_base.h"
+#include "pinlist.h"
 #include "Relays.h"
-
-
+#include "adc_keyboard.h"
 
 namespace Mcudrv
 {
+	namespace Wk
+	{
+
 	typedef Pd3 R0;
 	typedef Pd2 R1;
 	typedef Pc7 R2;
@@ -19,31 +20,55 @@ namespace Mcudrv
 
 
 	typedef Pinlist<R0, R1, R2, R3, R4, R5> Vport;
-	typedef cRelays<Vport> Relays;
+	typedef Wk::Relays<Vport> Relays;
   
-	namespace Sw
-  {
 	enum Cmd
 	{
-		C_GetState = Wk::C_ON + 1,
+		C_GetState = 24,
 		C_SetState,
 		C_ClearState, 
-		C_WriteState	
+		C_WriteState,
+		C_SetChannel,
+		C_ClearChannel
 	};
-
-	class Switch: Wake1
+	template<typename Features = SwitchDefaultFeatures>
+	class Switch
 	{
 	private:
-		static const uint8_t Info[];
-		
+		static void ProcessKeyboard(uint8_t key)
+		{
+			switch (key)
+			{
+			case 0: R0::Toggle();
+				break;
+			case 1: R1::Toggle();
+				break;
+			case 2: R2::Toggle();
+				break;
+			case 3: R3::Toggle();
+				break;
+			case 4: R4::Toggle();
+				break;
+			case 5: R5::Toggle();
+				break;
+			case 6: Relays::Toggle(0xff);
+					break;
+			default:
+					;
+			}
+		}
+
 	public:
 		#pragma data_alignment=4
-		static uint8_t NVstate @ ".eeprom.noinit";
+		#pragma location=".eeprom.noinit"
+		static uint8_t nv_state;// @ ".eeprom.noinit";
 		#pragma inline=forced
 		static void Init()
 		{
-			Wake1::Init();
-			if (NVstate < 0x40) Relays::Write(NVstate);
+			Vport::SetConfig<GpioBase::Out_PushPull>();
+			if(nv_state < 0x40) {
+				Relays::Write(nv_state);
+			}
 		}
 
 		#pragma inline=forced
@@ -56,7 +81,7 @@ namespace Mcudrv
 			Unlock<Eeprom>();
 			if (IsUnlocked<Eeprom>())
 			{
-				NVstate = Relays::ReadODR();
+				nv_state = Relays::ReadODR();
 				pdata.buf[0] = Wk::ERR_NO;
 			}
 			else pdata.buf[0] = Wk::ERR_EEPROMUNLOCK;
@@ -70,9 +95,5 @@ namespace Mcudrv
 		}
 	};
 
-	uint8_t Switch::NVstate;
-	const uint8_t Switch::Info[] = DEVICEINFO;
-
-	
-  }
-}
+	}//Wk
+}//Mcudrv
