@@ -26,7 +26,7 @@ namespace Mcudrv
 		};
 	};
 
-	static const uint8_t ledLinear[101] = {
+	static const uint8_t litTable[101] = {
 				0,
 				3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
 				15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
@@ -41,14 +41,6 @@ namespace Mcudrv
 				234, 239, 244, 249, 255
 	};
 
-//	{	46, 48,	50, 52, 54, 56, 58, 60, 62, 64,
-//		66, 68, 70, 72, 74,	76, 78, 80, 83, 86,
-//		89, 92, 95, 98, 101, 104, 107, 110, 113, 117,
-//		121, 125, 129, 133, 137, 141, 145, 150, 155, 160,
-//		165, 170, 175, 180,	186, 192, 198, 204, 210, 217,
-//		224, 231, 238, 245, 255
-//	};
-
 	template<typename Features = LedDriverDefaultFeatures>
 	class LedDriver : WakeData
 	{
@@ -62,9 +54,14 @@ namespace Mcudrv
 			};
 			uint32_t Data;
 		};
-		enum Ch { Ch1, Ch2 = Features::TwoChannels };
-		enum InstructionSet
-		{
+		enum {
+			DEFAULT_BRIGHTNESS = 50
+		};
+		enum Ch {
+			Ch1,
+			Ch2 = Features::TwoChannels
+		};
+		enum InstructionSet {
 			C_GetState = 16,
 			C_GetBright = 16,
 			C_GetFan = 16,
@@ -93,37 +90,35 @@ namespace Mcudrv
 			curState.fanSpeed = speed;
 		}
 		#pragma inline=forced
-		static void SetCh1()
+		static void UpdateChannel1()
 		{
 			using namespace T1;
-			static uint8_t br = state_nv.ch[Ch1];
+			static uint8_t br;
 			if(br < curState.ch[Ch1])
 				++br;
 			else if(br > curState.ch[Ch1])
 				--br;
-			Timer1::WriteCompareByte<Ch3>(ledLinear[br]);
+			Timer1::WriteCompareByte<Ch3>(litTable[br]);
 		}
 		#pragma inline=forced
-		static void SetCh2(stdx::Int2Type<true>)
+		static void UpdateChannel2(stdx::Int2Type<true>)
 		{
 			using namespace T2;
-			static uint8_t br = state_nv.ch[Ch2];
+			static uint8_t br;
 			if(br < curState.ch[Ch2])
 				++br;
 			else if(br > curState.ch[Ch2])
 				--br;
-			Timer2::WriteCompareByte<T2::Ch2>(br < ledLinear[0] ? br : ledLinear[br - ledLinear[0]]);
+			Timer2::WriteCompareByte<T2::Ch2>(litTable[br]);
 		}
 		#pragma inline=forced
-		static void SetCh2(stdx::Int2Type<false>) { }
+		static void UpdateChannel2(stdx::Int2Type<false>) { }
 		#pragma inline=forced
 		static void UpdIRQ()	//Soft Dimming
 		{
-//			if(T1::Timer1::CheckIntStatus(T1::IRQ_Update)) {
-//				T1::Timer1::ClearIntFlag(T1::IRQ_Update);
-			SetCh1();
-			SetCh2(stdx::Int2Type<Features::TwoChannels>());
 			using namespace T2;
+			UpdateChannel1();
+			UpdateChannel2(stdx::Int2Type<Features::TwoChannels>());
 			if(Features::FanControl) {
 				if(Timer2::ReadCompareByte<T2::Ch1>() < curState.fanSpeed) {
 					Timer2::GetCompareByte<T2::Ch1>()++;
@@ -132,7 +127,6 @@ namespace Mcudrv
 					Timer2::GetCompareByte<T2::Ch1>()--;
 				}
 			}
-//		}
 		}
 	public:
 		enum
@@ -300,7 +294,12 @@ namespace Mcudrv
 		#pragma inline=forced
 		static void SetBrightness(uint8_t br, const Ch ch = Ch1)
 		{
-			if(br > 100) br = 100;
+			if(!br) {
+				onState.ch[ch] = DEFAULT_BRIGHTNESS;
+			}
+			if(br > 100) {
+				br = 100;
+			}
 			curState.ch[ch] = br;
 		}
 		#pragma inline=forced
@@ -349,8 +348,8 @@ namespace Mcudrv
 		}
 		static void Off()
 		{
-			onState.ch[Ch1] = curState.ch[Ch1] ? curState.ch[Ch1] : 30;
-			if(Features::TwoChannels) onState.ch[Ch2] = curState.ch[Ch2] ? curState.ch[Ch2] : 30;
+			onState.ch[Ch1] = curState.ch[Ch1] ? curState.ch[Ch1] : DEFAULT_BRIGHTNESS;
+			if(Features::TwoChannels) onState.ch[Ch2] = curState.ch[Ch2] ? curState.ch[Ch2] : DEFAULT_BRIGHTNESS;
 			if(Features::FanControl) onState.fanSpeed = curState.fanSpeed;
 			curState.Data = 0;
 		}
