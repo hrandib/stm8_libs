@@ -1,13 +1,6 @@
 #pragma once
 
 #include "adc.h"
-#ifdef __VS12
-#define __interrupt
-#define __enable_interrupt()
-#define __weak
-#define __eeprom
-#define __no_init
-#endif
 
 namespace Mcudrv
 {
@@ -47,23 +40,27 @@ namespace Mcudrv
 			static const uint16_t B7value_min = B7value - tolerance;
 		};
 
+		typedef KeyboardTraits<0xFF, 10000UL, 2400UL, 3300UL, 4300UL, 5100UL, 8200UL, 16000UL, 56000UL> DefaultCfg;
+
+		template<typename Traits = DefaultCfg>
 		struct Buttons: Adcs::Adc<Mode8Bit>
 		{
 			#pragma inline=forced
-			template<Channel ch, Adcs::Div clockdiv, uint16_t threshold>
+			template<Channel ch, Adcs::Div clockdiv>
 			static void Init(callback_t cb)
 			{
 				cb_ = cb;
 				Adc::Init<ContMode, clockdiv>();
 				ChannelSelect<ch>();
-				WatchdogInit<0, threshold>();
+				WatchdogInit<0, Traits::WatchdogThreshold>();
 				EnableInterrupt<AnalogWatchdog>();
 				Enable();
 				StartConversion();
 			}
 		private:
 			static callback_t cb_;
-			INTERRUPT_HANDLER(ADC1_IRQHandler, 22)
+			_Pragma(VECTOR_ID(ADC1_AWDG_vector))
+			__interrupt static void AnalogWatchdogISR()
 			{
 				static uint8_t scount;
 				if(IsEvent<AnalogWatchdog>()) {
@@ -71,16 +68,16 @@ namespace Mcudrv
 					static uint8_t prev_key;
 					uint8_t key;
 					uint8_t sample = Buttons::ReadSample();
-					if (sample > BCfg::B1value_min && sample < BCfg::B1value_max) key = 0;
-					if (sample > BCfg::B2value_min && sample < BCfg::B2value_max) key = 1;
-					if (sample > BCfg::B3value_min && sample < BCfg::B3value_max) key = 2;
-					if (sample > BCfg::B4value_min && sample < BCfg::B4value_max) key = 3;
-					if (sample > BCfg::B5value_min && sample < BCfg::B5value_max) key = 4;
-					if (sample > BCfg::B6value_min && sample < BCfg::B6value_max) key = 5;
-					if (sample > BCfg::B7value_min && sample < BCfg::B7value_max) key = 6;
+					if (sample > Traits::B1value_min && sample < Traits::B1value_max) key = 0;
+					if (sample > Traits::B2value_min && sample < Traits::B2value_max) key = 1;
+					if (sample > Traits::B3value_min && sample < Traits::B3value_max) key = 2;
+					if (sample > Traits::B4value_min && sample < Traits::B4value_max) key = 3;
+					if (sample > Traits::B5value_min && sample < Traits::B5value_max) key = 4;
+					if (sample > Traits::B6value_min && sample < Traits::B6value_max) key = 5;
+					if (sample > Traits::B7value_min && sample < Traits::B7value_max) key = 6;
 					if (key == prev_key)
 					{
-						if (scount != BCfg::SampleCount)
+						if (scount != Traits::SampleCount)
 							scount++;
 					}
 					else
@@ -88,16 +85,15 @@ namespace Mcudrv
 						prev_key = key;
 						scount = 0;
 					}
-					if (scount == BCfg::SampleCount - 1)
-						ButtonsExec(key);
+					if (scount == Traits::SampleCount - 1)
+						cb_(key);
 				}
 			}
-
 		};
 
-		callback_t Buttons::cb_;
+		template<typename Traits>
+		callback_t Buttons<Traits>::cb_;
 
-		typedef KeyboardTraits<0xFF, 10000UL, 2400UL, 3300UL, 4300UL, 5100UL, 8200UL, 16000UL, 56000UL> DefaultCfg;
 	}//AdcKeys
 
 }//Mcudrv

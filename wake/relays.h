@@ -2,6 +2,7 @@
 
 #include "pinlist.h"
 
+namespace Mcudrv {
 namespace Wk {
 
 template<typename Port>
@@ -45,3 +46,4 @@ template<typename Port>
 uint8_t Relays<Port>::prevValue;
 
 }//Wk
+}//Mcudrv

@@ -18,7 +18,6 @@
 #define BOOTLOADER_EXIST 1
 #endif
 
-
 namespace Mcudrv
 {
 	namespace Wk
