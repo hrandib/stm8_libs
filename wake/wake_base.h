@@ -10,8 +10,6 @@
 #include "crc.h"
 #include "gpio.h"
 
-#define INSTRUCTION_SET_VERSION 2
-
 #ifndef WAKEDATABUFSIZE
 #define WAKEDATABUFSIZE 64
 #endif
@@ -427,7 +425,7 @@ namespace Mcudrv
 						if (!pdata.n)	{
 							pdata.buf[0] = ERR_NO;
 							pdata.buf[1] = moduleList::deviceMask;
-							pdata.buf[2] = INSTRUCTION_SET_VERSION;
+							pdata.buf[2] = INSTRUCTION_SET_VER_MAJOR << 4 | INSTRUCTION_SET_VER_MINOR;
 							pdata.n = 3;
 						}
 						//Info about single logical device

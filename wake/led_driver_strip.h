@@ -27,19 +27,16 @@ namespace Mcudrv
 	class LedDriver : WakeData
 	{
 	private:
+		typedef Pa3 PowerSwitch;
 		enum {
 			PWM_MAX = 0x7F,
 			FAN_START_VALUE = 15,
+			DEFAULT_BRIGHTNESS = 50
 		};
-		typedef Pa3 PowerSwitch;
-		union state_t {
-			struct {
-				uint8_t ch[2];
-				uint8_t fanSpeed;
-			};
-			uint32_t Data;
+		enum Ch {
+			Ch1,
+			Ch2 = Features::TwoChannels
 		};
-		enum Ch { Ch1, Ch2 = Features::TwoChannels };
 		enum InstructionSet {
 			C_GetState = 16,
 			C_GetBright = 16,
@@ -49,6 +46,13 @@ namespace Mcudrv
 			C_DecBright = 19,
 			C_SetFan = 20,
 			C_SetGfgFanAuto = 21
+		};
+		union state_t {
+			struct {
+				uint8_t ch[2];
+				uint8_t fanSpeed;
+			};
+			uint32_t Data;
 		};
 		#pragma data_alignment=4
 		#pragma location=".eeprom.noinit"
@@ -79,10 +83,10 @@ namespace Mcudrv
 			curState.fanSpeed = speed;
 		}
 		FORCEINLINE
-		static void SetCh1()
+		static void UpdateChannel1()
 		{
 			using namespace T2;
-			static uint8_t br = state_nv.ch[Ch1];
+			static uint8_t br;;
 			if(br < curState.ch[Ch1]) {
 				++br;
 			}
@@ -92,7 +96,7 @@ namespace Mcudrv
 			}
 			uint8_t linBr;
 			if(br >= 100) {
-				//linBr = PWM_MAX;
+				linBr = PWM_MAX;
 				PowerSwitch::Set();
 			}
 			else if(br > 76) {
@@ -104,10 +108,10 @@ namespace Mcudrv
 			Timer2::WriteCompareByte<T2::Ch2>(linBr);
 		}
 		FORCEINLINE
-		static void SetCh2(stdx::Int2Type<true>)
+		static void UpdateChannel2(stdx::Int2Type<true>)
 		{
 			using namespace T2;
-			static uint8_t br = state_nv.ch[Ch2];
+			static uint8_t br;
 			if(br < curState.ch[Ch2])
 				++br;
 			else if(br > curState.ch[Ch2])
@@ -115,12 +119,12 @@ namespace Mcudrv
 			Timer2::WriteCompareByte<T2::Ch2>(br);
 		}
 		FORCEINLINE
-		static void SetCh2(stdx::Int2Type<false>) { }
+		static void UpdateChannel2(stdx::Int2Type<false>) { }
 		FORCEINLINE
 		static void UpdIRQ()	//Soft Dimming
 		{
-			SetCh1();
-			SetCh2(stdx::Int2Type<Features::TwoChannels>());
+			UpdateChannel1();
+			UpdateChannel2(stdx::Int2Type<Features::TwoChannels>());
 			using namespace T2;
 			if(Features::FanControl) {
 				if(Timer2::ReadCompareByte<T2::Ch1>() < curState.fanSpeed) {
@@ -134,7 +138,12 @@ namespace Mcudrv
 		FORCEINLINE
 		static void SetBrightness(uint8_t br, const Ch ch = Ch1)
 		{
-			if(br > 100) br = 100;
+			if(!br) {
+				onState.ch[ch] = DEFAULT_BRIGHTNESS;
+			}
+			if(br > 100) {
+				br = 100;
+			}
 			curState.ch[ch] = br;
 		}
 		FORCEINLINE
@@ -343,8 +352,8 @@ namespace Mcudrv
 		}
 		static void Off()
 		{
-			onState.ch[Ch1] = curState.ch[Ch1] ? curState.ch[Ch1] : 30;
-			if(Features::TwoChannels) onState.ch[Ch2] = curState.ch[Ch2] ? curState.ch[Ch2] : 30;
+			onState.ch[Ch1] = curState.ch[Ch1] ? curState.ch[Ch1] : DEFAULT_BRIGHTNESS;
+			if(Features::TwoChannels) onState.ch[Ch2] = curState.ch[Ch2] ? curState.ch[Ch2] : DEFAULT_BRIGHTNESS;
 			if(Features::FanControl) onState.fanSpeed = curState.fanSpeed;
 			curState.Data = 0;
 		}

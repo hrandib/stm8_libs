@@ -89,7 +89,7 @@ namespace Mcudrv
 			curState.fanSpeed = speed;
 		}
 		#pragma inline=forced
-		static void SetCh1()
+		static void UpdateChannel1()
 		{
 			using namespace T2;
 			static uint8_t br;
@@ -102,7 +102,7 @@ namespace Mcudrv
 			Timer2::WriteCompareByte<T2::Ch3>(linTable[br]);
 		}
 		#pragma inline=forced
-		static void SetCh2(stdx::Int2Type<true>)
+		static void UpdateChannel2(stdx::Int2Type<true>)
 		{
 			using namespace T2;
 			static uint8_t br;
@@ -113,13 +113,13 @@ namespace Mcudrv
 			Timer2::WriteCompareByte<T2::Ch2>(linTable[br]);
 		}
 		#pragma inline=forced
-		static void SetCh2(stdx::Int2Type<false>) { }
+		static void UpdateChannel2(stdx::Int2Type<false>) { }
 		#pragma inline=forced
 		static void UpdIRQ()	//Soft Dimming
 		{
 			using namespace T2;
-			SetCh1();
-			SetCh2(stdx::Int2Type<Features::TwoChannels>());
+			UpdateChannel1();
+			UpdateChannel2(stdx::Int2Type<Features::TwoChannels>());
 			if(Features::FanControl)
 			{
 				if(Timer2::ReadCompareByte<T2::Ch1>() < curState.fanSpeed)
