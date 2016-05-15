@@ -26,7 +26,9 @@ namespace Mcudrv
 		};
 	};
 
-	static const uint8_t ledLinear[75] = {
+	static const uint8_t linTable[101] = {
+				0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+				13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
         26, 28, 30, 32, 34, 36, 38, 40, 42, 44,
         46, 48, 50, 52, 54, 56, 58, 60, 62, 64,
         66, 68, 70, 72, 74, 76, 78, 80, 82, 84,
@@ -36,14 +38,6 @@ namespace Mcudrv
         187, 191, 195, 199, 204, 209, 214, 219, 224, 229,
         234, 239, 244, 249, 255
 	};
-
-//	{	46, 48,	50, 52, 54, 56, 58, 60, 62, 64,
-//		66, 68, 70, 72, 74,	76, 78, 80, 83, 86,
-//		89, 92, 95, 98, 101, 104, 107, 110, 113, 117,
-//		121, 125, 129, 133, 137, 141, 145, 150, 155, 160,
-//		165, 170, 175, 180,	186, 192, 198, 204, 210, 217,
-//		224, 231, 238, 245, 255
-//	};
 
 	template<typename Features = LedDriverDefaultFeatures>
 	class LedDriver : WakeData
@@ -103,7 +97,7 @@ namespace Mcudrv
 				++br;
 			else if(br > curState.ch[Ch1])
 				--br;
-			Timer2::WriteCompareByte<T2::Ch3>(br < ledLinear[0] ? br : ledLinear[br - ledLinear[0]]);
+			Timer2::WriteCompareByte<T2::Ch3>(linTable[br]);
 		}
 		#pragma inline=forced
 		static void SetCh2(stdx::Int2Type<true>)
@@ -114,7 +108,7 @@ namespace Mcudrv
 				++br;
 			else if(br > curState.ch[Ch2])
 				--br;
-			Timer2::WriteCompareByte<T2::Ch2>(br < ledLinear[0] ? br : ledLinear[br - ledLinear[0]]);
+			Timer2::WriteCompareByte<T2::Ch2>(linTable[br]);
 		}
 		#pragma inline=forced
 		static void SetCh2(stdx::Int2Type<false>) { }
