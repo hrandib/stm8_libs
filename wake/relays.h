@@ -18,16 +18,22 @@ struct Relays : Port
 		prevValue = Port::ReadODR();
 		Port::Set(mask);
 	}
-	static void Toggle()
+	static void Toggle(uint8_t mask)
 	{
 		uint8_t value = Port::ReadODR();
-		if (value)
-		{
-			prevValue = value;
-			Port::Clear(0xFF);
+		if(0xFF == mask) {
+			if(value) {
+				prevValue = value;
+				Port::Clear(mask);
+			}
+			else {
+				Port::Set(prevValue);
+			}
 		}
-		else Port::Set(prevValue);
-
+		else {
+			prevValue = value;
+			Port::Toggle(mask);
+		}
 	}
 	static void Restore()
 	{

@@ -20,13 +20,15 @@ namespace Mcudrv
 	class Switch : WakeData
 	{
 	private:
+		typedef Switch<Features> Self;
 		enum InstructionSet {
 			C_GetState = 24,
 			C_SetState,
 			C_ClearState,
 			C_WriteState,
 			C_SetChannel,
-			C_ClearChannel
+			C_ClearChannel,
+			C_ToggleChannel
 		};
 		typedef Pd3 R0;
 		typedef Pd2 R1;
@@ -38,48 +40,12 @@ namespace Mcudrv
 		typedef Pinlist<R0, R1, R2, R3, R4, R5> Vport;
 
 		typedef Relays<Vport> SwitchRelays;
-		typedef AdcKeys::Buttons<> Keyboard;
+		typedef AdcKeys::Buttons<Self> Keyboard;
 
-#pragma data_alignment=4
-#pragma location=".eeprom.noinit"
+		#pragma data_alignment=4
+		#pragma location=".eeprom.noinit"
 		static uint8_t nv_state;// @ ".eeprom.noinit";
-
-		static void ProcessKeyboard(uint8_t key)
-		{
-			switch (key)
-			{
-			case 0: R0::Toggle();
-				break;
-			case 1: R1::Toggle();
-				break;
-			case 2: R2::Toggle();
-				break;
-			case 3: R3::Toggle();
-				break;
-			case 4: R4::Toggle();
-				break;
-			case 5: R5::Toggle();
-				break;
-			case 6: SwitchRelays::Toggle();
-					break;
-			default:
-					;
-			}
-		}
-
-	public:
-		enum {
-			deviceMask = DevSwitch,
-			features = Features::ChannelsNumber
-		};
-		#pragma inline=forced
-		static void Init()
-		{
-			Vport::SetConfig<GpioBase::Out_PushPull>();
-			Keyboard::Init<Adcs::Ch2, Adcs::Div12>(ProcessKeyboard);
-			SwitchRelays::Write(nv_state);
-		}
-
+		FORCEINLINE
 		static void FormResponse(void(*cb)(uint8_t))
 		{
 			if(pdata.n == 1) {
@@ -93,6 +59,7 @@ namespace Mcudrv
 				pdata.n = 1;
 			}
 		}
+		FORCEINLINE
 		static void FormResponseMask(void(*cb)(uint8_t))
 		{
 			if(pdata.n == 1 && pdata.buf[0] < Features::ChannelsNumber) {
@@ -106,8 +73,19 @@ namespace Mcudrv
 				pdata.n = 1;
 			}
 		}
-
-		#pragma inline=forced
+	public:
+		enum {
+			deviceMask = DevSwitch,
+			features = Features::ChannelsNumber
+		};
+		FORCEINLINE
+		static void Init()
+		{
+			Vport::SetConfig<GpioBase::Out_PushPull>();
+			Keyboard::template Init<Adcs::Ch2, Adcs::Div12>();
+			SwitchRelays::Write(nv_state);
+		}
+		FORCEINLINE
 		static void Process()
 		{
 			switch(cmd) {
@@ -138,33 +116,35 @@ namespace Mcudrv
 			case C_ClearChannel:
 				FormResponseMask(SwitchRelays::Clear);
 				break;
+			case C_ToggleChannel:
+				FormResponseMask(SwitchRelays::Toggle);
+				break;
 			default:
 				processedMask |= deviceMask;
 			}
 		}
-
-		#pragma inline=forced
+		FORCEINLINE
 		static void On()
 		{
 			SwitchRelays::Restore();
 		}
-		#pragma inline=forced
+		FORCEINLINE
 		static void Off()
 		{
 			SwitchRelays::Clear(0xFF);
 		}
-		#pragma inline=forced
+		FORCEINLINE
 		static void ToggleOnOff()
 		{
-			if(SwitchRelays::ReadODR()) {
-				Off();
-			}
-			else {
-				On();
-			}
+			SwitchRelays::Toggle(0xFF);
+//			if(SwitchRelays::ReadODR()) {
+//				Off();
+//			}
+//			else {
+//				On();
+//			}
 		}
-
-		#pragma inline=forced
+		FORCEINLINE
 		static void SaveState()
 		{
 			using namespace Mem;
@@ -176,6 +156,16 @@ namespace Mcudrv
 			if(IsUnlocked<Eeprom>()) {
 				nv_state = currentState;
 				Lock<Eeprom>();
+			}
+		}
+		FORCEINLINE
+		static void KeyboardHandler(uint8_t key)
+		{
+			if(key < 6) {
+				SwitchRelays::Toggle(1U << key);
+			}
+			else {
+				SwitchRelays::Toggle(0xFF);
 			}
 		}
 	};
