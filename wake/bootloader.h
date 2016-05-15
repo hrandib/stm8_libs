@@ -28,11 +28,11 @@ namespace Mcudrv {
 #define VECTOR(N) ((interrupt_handler_t)(UBC_END + N * 4))
 
     extern "C" {
-    void __iar_program_start();
-    }
+		void __iar_program_start();
+		}
 
 #pragma location=".intvec"
-    extern "C" const interrupt_vector ISR_TABLE[32] = {
+		extern "C" const interrupt_vector ISR_TABLE[32] = {
       {0x8200, __iar_program_start},/* Reset */
       {0x8200, VECTOR(1)}, /* trap  */
       {0x8200, VECTOR(2)}, /* irq0  */
@@ -68,7 +68,7 @@ namespace Mcudrv {
     };
 
 		enum {
-			BOOTLOADER_VER = 0x01
+			BOOTLOADER_VER = 0x02
 		};
 
 		enum {
@@ -334,8 +334,7 @@ namespace Mcudrv {
 					packet_.buf[i + BUF_OFFSET] = *memPtr_++;
 				}
 				packet_.buf[0] = ERR_NO;
-				*(uint16_t*)&packet_.buf[1] = (uint16_t)memPtr_;// - \
-																			(memEnd == Traits::FlashEnd ? Traits::FlashStart : Traits::EepromStart);
+				*(uint16_t*)&packet_.buf[1] = (uint16_t)memPtr_;
 				packet_.n = length + BUF_OFFSET;
 			}
 			FORCEINLINE static void Receive()
