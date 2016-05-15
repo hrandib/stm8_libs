@@ -58,7 +58,13 @@ namespace Mcudrv
 			};
 			uint32_t Data;
 		};
-		enum Ch { Ch1, Ch2 = Features::TwoChannels };
+		enum {
+			DEFAULT_BRIGHTNESS = 50
+		};
+		enum Ch {
+			Ch1,
+			Ch2 = Features::TwoChannels
+		};
 		enum InstructionSet
 		{
 			C_GetState = 16,
@@ -301,10 +307,14 @@ namespace Mcudrv
 			}//switch
 		}
 
-		#pragma inline=forced
-		static void SetBrightness(uint8_t br, const Ch ch = Ch1)
+		static void SetBrightness(uint8_t br, Ch ch = Ch1)
 		{
-			if(br > 100) br = 100;
+			if(!br) {
+				onState.ch[ch] = DEFAULT_BRIGHTNESS;
+			}
+			if(br > 100) {
+				br = 100;
+			}
 			curState.ch[ch] = br;
 		}
 		#pragma inline=forced
@@ -353,12 +363,11 @@ namespace Mcudrv
 		}
 		static void Off()
 		{
-			onState.ch[Ch1] = curState.ch[Ch1] ? curState.ch[Ch1] : 30;
-			if(Features::TwoChannels) onState.ch[Ch2] = curState.ch[Ch2] ? curState.ch[Ch2] : 30;
+			onState.ch[Ch1] = curState.ch[Ch1] ? curState.ch[Ch1] : DEFAULT_BRIGHTNESS;
+			if(Features::TwoChannels) onState.ch[Ch2] = curState.ch[Ch2] ? curState.ch[Ch2] : DEFAULT_BRIGHTNESS;
 			if(Features::FanControl) onState.fanSpeed = curState.fanSpeed;
 			curState.Data = 0;
 		}
-		#pragma inline=forced
 		static void ToggleOnOff()
 		{
 			if(!curState.Data) On();

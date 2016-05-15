@@ -23,8 +23,6 @@ namespace Mcudrv
 		};
 	};
 
-//	typedef LedDriverDefaultFeatures Features;
-
 	template<typename Features = LedDriverDefaultFeatures>
 	class LedDriver : WakeData
 	{
