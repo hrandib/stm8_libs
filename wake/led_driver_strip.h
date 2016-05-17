@@ -31,7 +31,6 @@ namespace Mcudrv
 		enum {
 			PWM_MAX = 0x7F,
 			FAN_START_VALUE = 15,
-			DEFAULT_BRIGHTNESS = 50
 		};
 		enum Ch {
 			Ch1,
@@ -48,19 +47,18 @@ namespace Mcudrv
 			C_SetGfgFanAuto = 21
 		};
 		union state_t {
-			struct {
-				uint8_t ch[2];
-				uint8_t fanSpeed;
-			};
-			uint32_t Data;
+			uint8_t ch[2];
+			uint16_t Data;
 		};
 		#pragma data_alignment=4
 		#pragma location=".eeprom.noinit"
 		static state_t state_nv;// @ ".eeprom.noinit";
 		static state_t curState, onState;
+		static const state_t DefaultState;
+		static uint8_t fanSpeed;
 		static uint8_t GetFanSpeed()
 		{
-			uint8_t speed = curState.fanSpeed;
+			uint8_t speed = fanSpeed;
 			if(speed == PWM_MAX) {
 				speed = 100;
 			}
@@ -80,13 +78,13 @@ namespace Mcudrv
 			else if (speed > 0)	{
 				speed = speed + FAN_START_VALUE;
 			}
-			curState.fanSpeed = speed;
+			fanSpeed = speed;
 		}
 		FORCEINLINE
 		static void UpdateChannel1()
 		{
 			using namespace T2;
-			static uint8_t br;;
+			static uint8_t br;
 			if(br < curState.ch[Ch1]) {
 				++br;
 			}
@@ -121,25 +119,10 @@ namespace Mcudrv
 		FORCEINLINE
 		static void UpdateChannel2(stdx::Int2Type<false>) { }
 		FORCEINLINE
-		static void UpdIRQ()	//Soft Dimming
-		{
-			UpdateChannel1();
-			UpdateChannel2(stdx::Int2Type<Features::TwoChannels>());
-			using namespace T2;
-			if(Features::FanControl) {
-				if(Timer2::ReadCompareByte<T2::Ch1>() < curState.fanSpeed) {
-					Timer2::GetCompareByte<T2::Ch1>()++;
-				}
-				else if(Timer2::ReadCompareByte<T2::Ch1>() > curState.fanSpeed) {
-					Timer2::GetCompareByte<T2::Ch1>()--;
-				}
-			}
-		}
-		FORCEINLINE
 		static void SetBrightness(uint8_t br, const Ch ch = Ch1)
 		{
 			if(!br) {
-				onState.ch[ch] = DEFAULT_BRIGHTNESS;
+				onState.ch[ch] = DefaultState.ch[ch];
 			}
 			if(br > 100) {
 				br = 100;
@@ -192,7 +175,6 @@ namespace Mcudrv
 				Timer2::SetChannelCfg<T2::Ch1, Output, ChannelCfgOut(Out_PWM_Mode1 | Out_PreloadEnable)>();
 				Timer2::ChannelEnable<T2::Ch1>();
 			}
-			OpTime::SetTimerCallback(UpdIRQ);
 		}
 		FORCEINLINE
 		static void Process()
@@ -341,20 +323,26 @@ namespace Mcudrv
 				{
 					SetWordProgramming();
 					state_nv = curState;
+			//this dummy write need to complete word programming
+			//simple two bytes write cause to greater wear due to physical mem organization
+					(&state_nv)[1].Data = 0;
+					Lock<Eeprom>();
 				}
-				Lock<Eeprom>();
 			}
 		}
 		FORCEINLINE
 		static void On()
 		{
+			if(!onState.Data) {
+				onState = DefaultState;
+			}
 			curState = onState;
 		}
 		static void Off()
 		{
-			onState.ch[Ch1] = curState.ch[Ch1] ? curState.ch[Ch1] : DEFAULT_BRIGHTNESS;
-			if(Features::TwoChannels) onState.ch[Ch2] = curState.ch[Ch2] ? curState.ch[Ch2] : DEFAULT_BRIGHTNESS;
-			if(Features::FanControl) onState.fanSpeed = curState.fanSpeed;
+			onState.ch[Ch1] = curState.ch[Ch1] ? curState.ch[Ch1] : DefaultState.ch[Ch1];
+			if(Features::TwoChannels) onState.ch[Ch2] = curState.ch[Ch2] ? curState.ch[Ch2] : DefaultState.ch[Ch2];
+//		if(Features::FanControl) fanSpeed = 0;
 			curState.Data = 0;
 		}
 		FORCEINLINE
@@ -363,6 +351,22 @@ namespace Mcudrv
 			if(!curState.Data) On();
 			else Off();
 		}
+		FORCEINLINE
+		static void UpdIRQ()	//Soft Dimming
+		{
+			UpdateChannel1();
+			UpdateChannel2(stdx::Int2Type<Features::TwoChannels>());
+			using namespace T2;
+			if(Features::FanControl) {
+				if(Timer2::ReadCompareByte<T2::Ch1>() < fanSpeed) {
+					Timer2::GetCompareByte<T2::Ch1>()++;
+				}
+				else if(Timer2::ReadCompareByte<T2::Ch1>() > fanSpeed) {
+					Timer2::GetCompareByte<T2::Ch1>()--;
+				}
+			}
+		}
+
 		FORCEINLINE
 		static uint8_t GetDeviceFeatures(const uint8_t)
 		{
@@ -376,6 +380,10 @@ namespace Mcudrv
 	typename LedDriver<Features>::state_t LedDriver<Features>::curState = state_nv;
 	template<typename Features>
 	typename LedDriver<Features>::state_t LedDriver<Features>::onState;
+	template<typename Features>
+	const typename LedDriver<Features>::state_t LedDriver<Features>::DefaultState = {100, 100};
+	template<typename Features>
+	uint8_t LedDriver<Features>::fanSpeed;
 
   } //Ldrv
 } //Mcudrv

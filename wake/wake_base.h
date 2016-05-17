@@ -23,6 +23,7 @@ namespace Mcudrv
 	namespace Wk
 	{
 //	---=== Operation time counter ===---
+		template<typename TCallback>
 		class OpTime
 		{
 		private:
@@ -51,11 +52,10 @@ namespace Mcudrv
 					tempCounter = 0;
 					SetTenMinutesFlag();
 				}
-				if(Timer_cb) Timer_cb();
+				TCallback::UpdIRQ();
 			}
 
 		public:
-			static void (*volatile Timer_cb)();
 			#pragma inline=forced
 			static void Init()
 			{
@@ -63,11 +63,6 @@ namespace Mcudrv
 				Itc::SetPriority(TIM4_OVR_UIF_vector, Itc::prioLevel_2_middle);
 				Timer4::Init(Div_128, CEN);
 				Timer4::EnableInterrupt();
-			}
-			#pragma inline=forced
-			static void SetTimerCallback(void (*t_cb)())
-			{
-				Timer_cb = t_cb;
 			}
 			#pragma inline=forced
 			static bool GetTenMinitesFlag()
@@ -118,10 +113,12 @@ namespace Mcudrv
 			}
 		};
 
-		OpTime::EepromBuf_t OpTime::eebuf[16];
-		uint16_t OpTime::hvalue;
-		volatile bool OpTime::tenMinPassed;
-		void (*volatile OpTime::Timer_cb)();
+		template<typename TCallback>
+		OpTime<TCallback>::EepromBuf_t OpTime<TCallback>::eebuf[16];
+		template<typename TCallback>
+		uint16_t OpTime<TCallback>::hvalue;
+		template<typename TCallback>
+		volatile bool OpTime<TCallback>::tenMinPassed;
 
 	//			---=== Wake main definitions ===---
 
@@ -208,6 +205,7 @@ namespace Mcudrv
 			addrNode
 		};
 
+		//Every module should implement the same interface
 		struct NullModule
 		{
 			enum { deviceMask = DevNull, features = 0 };
@@ -218,6 +216,7 @@ namespace Mcudrv
 			static void Off() { }
 			static uint8_t GetDeviceFeatures(uint8_t) {return 0;}
 			static void ToggleOnOff() { }
+			static void UpdIRQ() { }
 		};
 
 		template<typename Module1, typename Module2 = NullModule, typename Module3 = NullModule,
@@ -244,7 +243,7 @@ namespace Mcudrv
 				Module5::Process();
 				Module6::Process();
 			}
-			static uint8_t GetDeviceFeatures(const uint8_t deviceMask)
+			static uint8_t GetDeviceFeatures(uint8_t deviceMask)
 			{
 				return deviceMask == Module1::deviceMask ? Module1::features :
 						deviceMask == Module2::deviceMask ? Module2::features :
@@ -289,6 +288,15 @@ namespace Mcudrv
 				Module5::ToggleOnOff();
 				Module6::ToggleOnOff();
 			}
+			static void UpdIRQ()
+			{
+				Module1::UpdIRQ();
+				Module2::UpdIRQ();
+				Module3::UpdIRQ();
+				Module4::UpdIRQ();
+				Module5::UpdIRQ();
+				Module6::UpdIRQ();
+			}
 		};
 
 		class WakeData
@@ -318,6 +326,7 @@ namespace Mcudrv
 		{
 		private:
 			typedef Uarts::Uart Uart;
+			typedef OpTime<moduleList> OpTime;
 			#pragma location=".eeprom.noinit"
 			static volatile uint8_t nodeAddr_nv;// @ ".eeprom.data";
 			#pragma location=".eeprom.noinit"

@@ -137,12 +137,6 @@ namespace Mcudrv
 		static void ToggleOnOff()
 		{
 			SwitchRelays::Toggle(0xFF);
-//			if(SwitchRelays::ReadODR()) {
-//				Off();
-//			}
-//			else {
-//				On();
-//			}
 		}
 		FORCEINLINE
 		static void SaveState()
