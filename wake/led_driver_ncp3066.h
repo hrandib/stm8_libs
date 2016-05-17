@@ -366,15 +366,6 @@ namespace Mcudrv
 		{
 			UpdateChannel1();
 			UpdateChannel2(stdx::Int2Type<Features::TwoChannels>());
-//			WriteSpeed(fanSpeed);
-//			if(Features::FanControl) {
-//				if(Timer2::ReadCompareByte<T2::Ch1>() < fanSpeed) {
-//					Timer2::GetCompareByte<T2::Ch1>()++;
-//				}
-//				else if(Timer2::ReadCompareByte<T2::Ch1>() > fanSpeed) {
-//					Timer2::GetCompareByte<T2::Ch1>()--;
-//				}
-//			}
 		}
 	};
 
