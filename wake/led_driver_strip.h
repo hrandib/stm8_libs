@@ -55,10 +55,20 @@ namespace Mcudrv
 		static state_t state_nv;// @ ".eeprom.noinit";
 		static state_t curState, onState;
 		static const state_t DefaultState;
-		static uint8_t fanSpeed;
+		FORCEINLINE
+		static uint8_t ReadSpeed()
+		{
+			return T2::Timer2::ReadCompareByte<T2::Ch1>();
+		}
+		FORCEINLINE
+		static void WriteSpeed(uint8_t val)
+		{
+			T2::Timer2::WriteCompareByte<T2::Ch1>(val);
+		}
+
 		static uint8_t GetFanSpeed()
 		{
-			uint8_t speed = fanSpeed;
+			uint8_t speed = ReadSpeed();
 			if(speed == PWM_MAX) {
 				speed = 100;
 			}
@@ -78,7 +88,7 @@ namespace Mcudrv
 			else if (speed > 0)	{
 				speed = speed + FAN_START_VALUE;
 			}
-			fanSpeed = speed;
+			WriteSpeed(speed);
 		}
 		FORCEINLINE
 		static void UpdateChannel1()
@@ -356,15 +366,6 @@ namespace Mcudrv
 		{
 			UpdateChannel1();
 			UpdateChannel2(stdx::Int2Type<Features::TwoChannels>());
-			using namespace T2;
-			if(Features::FanControl) {
-				if(Timer2::ReadCompareByte<T2::Ch1>() < fanSpeed) {
-					Timer2::GetCompareByte<T2::Ch1>()++;
-				}
-				else if(Timer2::ReadCompareByte<T2::Ch1>() > fanSpeed) {
-					Timer2::GetCompareByte<T2::Ch1>()--;
-				}
-			}
 		}
 
 		FORCEINLINE
@@ -382,8 +383,6 @@ namespace Mcudrv
 	typename LedDriver<Features>::state_t LedDriver<Features>::onState;
 	template<typename Features>
 	const typename LedDriver<Features>::state_t LedDriver<Features>::DefaultState = {100, 100};
-	template<typename Features>
-	uint8_t LedDriver<Features>::fanSpeed;
 
   } //Ldrv
 } //Mcudrv

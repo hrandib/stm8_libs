@@ -39,21 +39,15 @@ namespace Mcudrv
         234, 239, 244, 249, 255
 	};
 
+	typedef void(*write_t)(uint8_t);
+
 	template<typename Features = LedDriverDefaultFeatures>
 	class LedDriver : WakeData
 	{
 	private:
-		union state_t
-		{
-			struct
-			{
-				uint8_t ch[2];
-				uint8_t fanSpeed;
-			};
-			uint32_t Data;
-		};
-		enum {
-			DEFAULT_BRIGHTNESS = 50
+		union state_t {
+			uint8_t ch[2];
+			uint16_t Data;
 		};
 		enum Ch {
 			Ch1,
@@ -74,9 +68,21 @@ namespace Mcudrv
 		#pragma location=".eeprom.noinit"
 		static state_t state_nv;// @ ".eeprom.noinit";
 		static state_t curState, onState;
+		static const state_t DefaultState;
+		FORCEINLINE
+		static uint8_t ReadSpeed()
+		{
+			return T2::Timer2::ReadCompareByte<T2::Ch1>();
+		}
+		FORCEINLINE
+		static void WriteSpeed(uint8_t val)
+		{
+			T2::Timer2::WriteCompareByte<T2::Ch1>(val);
+		}
+
 		static uint8_t GetFanSpeed()
 		{
-			uint8_t tmp = curState.fanSpeed;
+			uint8_t tmp = ReadSpeed();
 			return tmp > 20 ? (tmp - 20) / 2 : 0;
 		}
 		static void SetFanSpeed(uint8_t speed)
@@ -86,7 +92,7 @@ namespace Mcudrv
 			{
 				speed = speed * 2 + 20;
 			}
-			curState.fanSpeed = speed;
+			WriteSpeed(speed);
 		}
 		#pragma inline=forced
 		static void UpdateChannel1()
@@ -114,24 +120,41 @@ namespace Mcudrv
 		}
 		#pragma inline=forced
 		static void UpdateChannel2(stdx::Int2Type<false>) { }
-		#pragma inline=forced
-		static void UpdIRQ()	//Soft Dimming
+		static void SetBrightness(uint8_t br, Ch ch = Ch1)
 		{
-			using namespace T2;
-			UpdateChannel1();
-			UpdateChannel2(stdx::Int2Type<Features::TwoChannels>());
-			if(Features::FanControl)
-			{
-				if(Timer2::ReadCompareByte<T2::Ch1>() < curState.fanSpeed)
-				{
-					Timer2::GetCompareByte<T2::Ch1>()++;
-				}
-				else if(Timer2::ReadCompareByte<T2::Ch1>() > curState.fanSpeed)
-				{
-					Timer2::GetCompareByte<T2::Ch1>()--;
-				}
+			if(!br) {
+				onState.ch[ch] = DefaultState.ch[ch];
 			}
+			if(br > 100) {
+				br = 100;
+			}
+			curState.ch[ch] = br;
 		}
+		#pragma inline=forced
+		static uint8_t GetBrightness(Ch ch = Ch1)
+		{
+			return curState.ch[ch];
+		}
+		static uint8_t IncBrightness(uint8_t step, Ch ch = Ch1)
+		{
+			uint8_t cur = GetBrightness(ch);
+			if(cur < 100)
+			{
+				step = step < 100 ? step : 100;
+				cur += step;
+				SetBrightness(cur, ch);
+			}
+			return cur;
+		}
+		static uint8_t DecBrightness(uint8_t step, Ch ch = Ch1)
+		{
+			uint8_t cur = GetBrightness(ch);
+			if(cur <= step) cur = 0;
+			else cur -= step;
+			SetBrightness(cur, ch);
+			return cur;
+		}
+
 	public:
 		enum
 		{
@@ -145,22 +168,19 @@ namespace Mcudrv
 			static const ChannelCfgOut channelConfig = ChannelCfgOut(Out_PWM_Mode1 | Out_PreloadEnable);
 			Pa3::SetConfig<GpioBase::Out_PushPull_fast>();
 			Timer2::Init(Div_16, Cfg(ARPE | CEN));
-			Timer2::WriteAutoReload(255);			//Fcpu/16/256 ~= 490Hz for 2 MHz
+			Timer2::WriteAutoReload(0xFF);			//Fcpu/16/256 ~= 490Hz for 2 MHz
 			Timer2::SetChannelCfg<T2::Ch3, Output, channelConfig>();
 			Timer2::ChannelEnable<T2::Ch3>();
 			Pd3::SetConfig<GpioBase::Out_PushPull_fast>();
-			if(Features::TwoChannels)
-			{
+			if(Features::TwoChannels) {
 				Timer2::SetChannelCfg<T2::Ch2, Output, channelConfig>();
 				Timer2::ChannelEnable<T2::Ch2>();
 			}
-			if(Features::FanControl)
-			{
+			if(Features::FanControl) {
 				Pd4::SetConfig<GpioBase::Out_PushPull_fast>();
 				Timer2::SetChannelCfg<T2::Ch1, Output, channelConfig>();
 				Timer2::ChannelEnable<T2::Ch1>();
 			}
-			OpTime::SetTimerCallback(UpdIRQ);
 		}
 		#pragma inline=forced
 		static void Process()
@@ -299,40 +319,6 @@ namespace Mcudrv
 			}//switch
 		}
 
-		static void SetBrightness(uint8_t br, Ch ch = Ch1)
-		{
-			if(!br) {
-				onState.ch[ch] = DEFAULT_BRIGHTNESS;
-			}
-			if(br > 100) {
-				br = 100;
-			}
-			curState.ch[ch] = br;
-		}
-		#pragma inline=forced
-		static uint8_t GetBrightness(Ch ch = Ch1)
-		{
-			return curState.ch[ch];
-		}
-		static uint8_t IncBrightness(uint8_t step, Ch ch = Ch1)
-		{
-			uint8_t cur = GetBrightness(ch);
-			if(cur < 100)
-			{
-				step = step < 100 ? step : 100;
-				cur += step;
-				SetBrightness(cur, ch);
-			}
-			return cur;
-		}
-		static uint8_t DecBrightness(uint8_t step, Ch ch = Ch1)
-		{
-			uint8_t cur = GetBrightness(ch);
-			if(cur <= step) cur = 0;
-			else cur -= step;
-			SetBrightness(cur, ch);
-			return cur;
-		}
 		static void SaveState()
 		{
 			using namespace Mem;
@@ -343,21 +329,26 @@ namespace Mcudrv
 				{
 					SetWordProgramming();
 					state_nv = curState;
+		//this dummy write need to complete word programming
+		//simple two bytes write cause to greater wear due to physical mem organization
+					(&state_nv)[1].Data = 0;
+					Lock<Eeprom>();
 				}
-				Lock<Eeprom>();
 			}
 		}
-
 		#pragma inline=forced
 		static void On()
 		{
+			if(!onState.Data) {
+				onState = DefaultState;
+			}
 			curState = onState;
 		}
 		static void Off()
 		{
-			onState.ch[Ch1] = curState.ch[Ch1] ? curState.ch[Ch1] : DEFAULT_BRIGHTNESS;
-			if(Features::TwoChannels) onState.ch[Ch2] = curState.ch[Ch2] ? curState.ch[Ch2] : DEFAULT_BRIGHTNESS;
-			if(Features::FanControl) onState.fanSpeed = curState.fanSpeed;
+			onState.ch[Ch1] = curState.ch[Ch1] ? curState.ch[Ch1] : DefaultState.ch[Ch1];
+			if(Features::TwoChannels) onState.ch[Ch2] = curState.ch[Ch2] ? curState.ch[Ch2] : DefaultState.ch[Ch2];
+			if(Features::FanControl) WriteSpeed(0);
 			curState.Data = 0;
 		}
 		static void ToggleOnOff()
@@ -365,11 +356,25 @@ namespace Mcudrv
 			if(!curState.Data) On();
 			else Off();
 		}
-
 		#pragma inline=forced
 		static uint8_t GetDeviceFeatures(const uint8_t)
 		{
 			return features;
+		}
+		#pragma inline=forced
+		static void UpdIRQ()	//Soft Dimming
+		{
+			UpdateChannel1();
+			UpdateChannel2(stdx::Int2Type<Features::TwoChannels>());
+//			WriteSpeed(fanSpeed);
+//			if(Features::FanControl) {
+//				if(Timer2::ReadCompareByte<T2::Ch1>() < fanSpeed) {
+//					Timer2::GetCompareByte<T2::Ch1>()++;
+//				}
+//				else if(Timer2::ReadCompareByte<T2::Ch1>() > fanSpeed) {
+//					Timer2::GetCompareByte<T2::Ch1>()--;
+//				}
+//			}
 		}
 	};
 
@@ -379,6 +384,8 @@ namespace Mcudrv
 	LedDriver<Features>::state_t LedDriver<Features>::curState = state_nv;
 	template<typename Features>
 	LedDriver<Features>::state_t LedDriver<Features>::onState;
+	template<typename Features>
+	const typename LedDriver<Features>::state_t LedDriver<Features>::DefaultState = {100, 100};
 
   } //Ldrv
 } //Mcudrv
