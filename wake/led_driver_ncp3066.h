@@ -79,7 +79,6 @@ namespace Mcudrv
 		{
 			T2::Timer2::WriteCompareByte<T2::Ch1>(val);
 		}
-
 		static uint8_t GetFanSpeed()
 		{
 			uint8_t tmp = ReadSpeed();
@@ -318,7 +317,6 @@ namespace Mcudrv
 				processedMask |= deviceMask;
 			}//switch
 		}
-
 		static void SaveState()
 		{
 			using namespace Mem;
