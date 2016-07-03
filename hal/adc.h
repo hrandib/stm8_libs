@@ -4,7 +4,7 @@
 
 namespace Mcudrv
 {
-  
+
  	namespace Adcs
 	{
 		enum Mode
