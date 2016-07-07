@@ -132,6 +132,8 @@ namespace Mcudrv
 			{
 				using namespace T2;
 				Pd4::SetConfig<GpioBase::Out_PushPull_fast>();
+				Timer2::Init(Div_1, Cfg(ARPE | CEN));
+				Timer2::WriteAutoReload(0xFF);			//Fcpu/256 ~= 7800Hz for 2 MHz
 				Timer2::SetChannelCfg<T2::Ch1, Output, ChannelCfgOut(Out_PWM_Mode1 | Out_PreloadEnable)>();
 				Timer2::ChannelEnable<T2::Ch1>();
 			}

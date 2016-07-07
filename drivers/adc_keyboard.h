@@ -51,7 +51,7 @@ namespace Mcudrv
 			{
 //				cb_ = cb;
 				Adc::Init<ContMode, clockdiv>();
-				ChannelSelect<ch>();
+				SelectChannel(ch);
 				WatchdogInit<0, Traits::WatchdogThreshold>();
 				EnableInterrupt<AnalogWatchdog>();
 				Enable();

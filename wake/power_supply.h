@@ -5,19 +5,193 @@
 #include "gpio.h"
 #include "adc.h"
 
-//		MBI6651
-//	First Channel,	Fan Control
-//  PC3(TIM1_CH3)	PD4(TIM2_CH1)
-//		NCP3066
-//	First Channel,				Fan Control
-//	PA3(TIM2_CH3) - On/Off		PD4(TIM2_CH1)
-//  PD3(TIM2_CH2) - driver NFB
+
 
 namespace Mcudrv {
 	namespace Wk {
 
+	typedef Pa2 Relay1;
+	typedef Pa1 Relay2;
 
+	typedef Pd3 Isen; //AIN4
+	typedef Pd2 Vsen; //AIN3
+	typedef Pd4 Ilim; //TIM2 CH1
+
+	struct PowersSupplyDefaultFeatures {
+		enum {
+			PowerRating = 36
+		};
+	};
+
+	class PowerSupply : WakeData, public NullModule
+	{
+	private:
+		enum InstructionSet {
+			C_Voltage,
+			C_Current,
+			C_Power,
+			C_Load,
+			C_GetValue = 52,
+			C_SetCurrentLim = 53
+		};
+
+		typedef Adcs::Adc1 Adc;
+		static const Adcs::Channel VsenChannel = (Adcs::Channel)Adcs::PinToCh<Vsen>::value;
+		static const Adcs::Channel IsenChannel = (Adcs::Channel)Adcs::PinToCh<Isen>::value;
+		static uint16_t rawVoltage;
+		static uint16_t rawCurrent;
+		FORCEINLINE
+		static uint16_t To_mA(uint16_t value)
+		{
+			return (value * 5) / 32;
+		}
+		FORCEINLINE
+		static uint16_t To_mV_tens(uint16_t value)
+		{
+			return 1890U + ((value * 5) / 64);
+		}
+		_Pragma(VECTOR_ID(ADC1_EOC_vector))
+		__interrupt static void AdcISR()
+		{
+			Adc::ClearEvent(Adcs::EndOfConv);
+			uint16_t result = 0;
+			for(uint8_t i = 0; i < 10; ++i) {
+				result += Adc::buffer[i];
+			}
+//			if(Adc::GetSelectedChannel() == VsenChannel) {
+				rawVoltage = result;
+//				Adc::SelectChannel(IsenChannel);
+//			}
+//			else {
+//				rawCurrent = result;
+//				Adc::SelectChannel(VsenChannel);
+//			}
+		}
+	public:
+		enum
+		{
+			deviceMask = DevPowerSupply,
+			features = PowersSupplyDefaultFeatures::PowerRating
+		};
+		FORCEINLINE
+		static void Init()
+		{
+			{	using namespace Adcs;
+				Isen::SetConfig<GpioBase::In_float>();
+				Vsen::SetConfig<GpioBase::In_float>();
+				Adc::DisableSchmittTrigger<IsenChannel | VsenChannel>();
+				Adc::SelectChannel((Channel)VsenChannel);
+				Adc::Init<Cfg(ADCEnable | ContMode | BufferEnable), Div2>();
+				Adc::EnableInterrupt(EndOfConv);
+				Adc::Enable();
+				Adc::StartConversion();
+			}
+			{ using namespace T2;
+				Ilim::SetConfig<GpioBase::Out_PushPull_fast>();
+				Timer2::Init(Div_1, Cfg(ARPE | CEN));
+				Timer2::WriteAutoReload(0xFF);			//Fcpu/256 ~= 7800Hz for 2 MHz
+				Timer2::WriteCompareByte<Ch1>(0xFF);
+				Timer2::SetChannelCfg<Ch1, Output, ChannelCfgOut(Out_PWM_Mode1 | Out_PreloadEnable)>();
+				Timer2::ChannelEnable<Ch1>();
+			}
+		}
+		FORCEINLINE
+		static void Process()
+		{
+			uint16_t* const bufval = (uint16_t*)&pdata.buf[1];
+			switch(cmd) {
+			case C_GetValue:
+				pdata.buf[0] = ERR_NO;
+				if(!pdata.n) {
+					pdata.n = 6;
+					bufval[0] = GetVoltage();
+					bufval[1] = GetCurrent();
+					*(uint8_t*)&bufval[2] = GetLoad();
+				}
+				else if(pdata.n == 1 && pdata.buf[0] < 4) {
+					pdata.n = 3;
+					switch(pdata.buf[0]) {
+					case C_Voltage:
+						*bufval = GetVoltage();
+						break;
+					case C_Current:
+						*bufval = GetCurrent();
+						break;
+					case C_Power:
+						*bufval = GetPower();
+						break;
+					case C_Load:
+						pdata.n = 2;
+						pdata.buf[1] = GetLoad();
+						break;
+					}
+				}
+				else {
+					pdata.buf[0] = ERR_PA;
+					pdata.n = 1;
+				}
+				break;
+			case C_SetCurrentLim: {
+				if(pdata.n == 1) {
+					SetCurrentLimit(pdata.buf[0]);
+					pdata.buf[0] = ERR_NO;
+				}
+				else {
+					pdata.buf[0] = ERR_PA;
+					pdata.n = 1;
+				}
+			}
+				break;
+			default:
+				processedMask |= deviceMask;
+			}
+
+		}
+		FORCEINLINE
+		static uint8_t GetDeviceFeatures(const uint8_t)
+		{
+			return features;
+		}
+		FORCEINLINE
+		static void UpdIRQ()
+		{
+//			if(Adc::GetSelectedChannel() == IsenChannel) {
+//				Adc::SelectChannel(VsenChannel);
+//			}
+//			else {
+//				Adc::SelectChannel(IsenChannel);
+//			}
+//			Adc::EnableContinuous();
+//			Adc::StartConversion();
+		}
+
+		static uint16_t GetVoltage()
+		{
+			return To_mV_tens(rawVoltage);
+		}
+		static uint16_t GetCurrent()
+		{
+			return To_mA(rawCurrent);
+		}
+		static uint16_t GetPower()
+		{
+			uint32_t power = (uint32_t)GetVoltage() * GetCurrent();
+			return uint16_t(power / 10000);
+		}
+		static uint8_t GetLoad()
+		{
+			uint16_t result = (GetPower() * 26 + features/2) / features;
+			return result < 0xFF ? result : 0xFF;
+		}
+		static void SetCurrentLimit(uint8_t limit)
+		{
+			T2::Timer2::WriteCompareByte<T2::Ch1>(limit);
+		}
+	};
+	uint16_t PowerSupply::rawVoltage;
+	uint16_t PowerSupply::rawCurrent;
 
 	}//Wk
 }//Mcudrv
+
 #endif // POWER_SUPPLY_H

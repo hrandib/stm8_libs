@@ -302,7 +302,7 @@ public:
 	}
 	static uint16_t* Get(uint16_t* valArray)
 	{
-		for(uint8_t i = 0; i < devMaxNumber; ++i)
+		for(uint8_t i = 0; i < devNumber; ++i)
 		{
 			valArray[i] = Get(i);
 		}

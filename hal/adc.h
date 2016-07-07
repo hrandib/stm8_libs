@@ -1,79 +1,109 @@
 #pragma once
-//ADC Driver 12.08.2013
+
 #include "stm8s.h"
+#include "gpio.h"
 
-namespace Mcudrv
-{
+namespace Mcudrv {
+	namespace Adcs {
 
- 	namespace Adcs
-	{
-		enum Mode
-		{
-			Mode8Bit,
-			Mode10bit
-		};
+	enum Mode {
+		Mode8Bit,
+		Mode10bit
+	};
 
-		
-		enum Cfg
-		{
-//		---=== ADC CR1 ===---	
-		ADCEnable = ADC1_CR1_ADON,			//Only one this bit must be changed to start conversion
+	enum Cfg {
+		//		---=== ADC CR1 ===---
+		ADCEnable = ADC1_CR1_ADON,			//Only this bit must be changed to start conversion
 		ContMode = ADC1_CR1_CONT,
 
-//		---=== ADC CR2 ===---
+		//		---=== ADC CR2 ===---
 		ScanMode = ADC1_CR2_SCAN << 8UL,
 
-//		LeftAlign = 0,
-//		RightAlign = ADC1_CR2_ALIGN << 8UL,
+		//		LeftAlign = 0,
+		//		RightAlign = ADC1_CR2_ALIGN << 8UL,
 
-//		ExTrigEnable
-//		Tim1TrgoEvent
-//		EtrPinEvent
+		//		ExTrigEnable
+		//		Tim1TrgoEvent
+		//		EtrPinEvent
 
-//		---=== ADC CR3 ===---
+		//		---=== ADC CR3 ===---
 		BufferEnable = static_cast<uint32_t>(ADC1_CR3_DBUF) << 16UL
-		
-		};
+	};
 
-		enum Div		//Change when ADC Power down
-		{
-		  Div2,
-		  Div3,
-		  Div4,
-		  Div6,
-		  Div8,
-		  Div10,
-		  Div12,
-		  Div18
-		};
-		
-		enum Channel
-		{
-			Ch0,
-			Ch1,
-			Ch2,
-			Ch3,
-			Ch4,
-			Ch5,
-			Ch6,
-			Ch7,
-			Ch8,
-			Ch9,
-			Ch10,
-			Ch11,
-			Ch12,
-			Ch13,
-			Ch14,
-			Ch15
-		};
+	enum Div {		//Change when ADC Power down
+		Div2,
+		Div3,
+		Div4,
+		Div6,
+		Div8,
+		Div10,
+		Div12,
+		Div18
+	};
 
-		enum Ints
-		{
-			EndOfConv = ADC1_CSR_EOCIE,
-			AnalogWatchdog = ADC1_CSR_AWDIE
+	enum Channel {
+		Ch0,
+		Ch1,
+		Ch2,
+		Ch3,
+		Ch4,
+		Ch5,
+		Ch6,
+		Ch7,
+		Ch8,
+		Ch9,
+		Ch10,
+		Ch11,
+		Ch12,
+		Ch13,
+		Ch14,
+		Ch15
+	};
+
+	template<typename Pin>
+	struct PinToCh;
+#if defined (STM8S103) || defined (STM8S003)
+	template<>
+	struct PinToCh<Pc4> {
+		enum {
+			value = Ch2
 		};
-		
-		template<Mode mode>
+	};
+	template<>
+	struct PinToCh<Pd2> {
+		enum {
+			value = Ch3
+		};
+	};
+	template<>
+	struct PinToCh<Pd3> {
+		enum {
+			value = Ch4
+		};
+	};
+	template<>
+	struct PinToCh<Pd5> {
+		enum {
+			value = Ch5
+		};
+	};
+	template<>
+	struct PinToCh<Pd6> {
+		enum {
+			value = Ch6
+		};
+	};
+
+	//TODO: implement
+#elif defined (STM8S105)
+#endif
+
+	enum Ints {
+		EndOfConv = ADC1_CSR_EOCIE,
+		AnalogWatchdog = ADC1_CSR_AWDIE
+	};
+
+	template<Mode mode>
 		struct AdcTraits
 		{
 			typedef uint16_t result_t;
@@ -106,13 +136,11 @@ namespace Mcudrv
 				ADC1->CR3 = cfg >> 16UL;
 			}
 
-			template<Ints mask>
-			static void EnableInterrupt()
+			static void EnableInterrupt(Ints mask)
 			{
 				ADC1->CSR |= mask;
 			}
-			template<Ints mask>
-			static void DisableInterrupt()
+			static void DisableInterrupt(Ints mask)
 			{
 				ADC1->CSR &= ~mask;
 			}
@@ -148,6 +176,16 @@ namespace Mcudrv
 			{
 				ADC1->CR1 |= ADCEnable;
 			}
+			static void DisableContinuous()
+			{
+				ADC1->CR1 &= ~ContMode;
+			}
+			static void EnableContinuous()
+			{
+				ADC1->CR1 |= ContMode;
+			}
+
+
 			static void Disable()
 			{
 				ADC1->CR1 &= ~ADCEnable;
@@ -162,30 +200,45 @@ namespace Mcudrv
 			{
 				return ADC1->CSR & (event << 2UL);
 			}
+			FORCEINLINE
+			static bool IsEvent(Ints event)
+			{
+				return ADC1->CSR & (event << 2UL);
+			}
+
 			template<Ints event>
 			static void ClearEvent()
 			{
 				ADC1->CSR &= ~(event << 2UL);
 			}
-			template<Channel ch>
-			static void ChannelSelect()
+			FORCEINLINE
+			static void ClearEvent(Ints event)
+			{
+				ADC1->CSR &= ~(event << 2UL);
+			}
+
+			FORCEINLINE
+			static void SelectChannel(Channel ch)
 			{
 				ADC1->CSR &= ~ADC1_CSR_CH;
 				ADC1->CSR |= ch;
-				DisableSchmittTrigger< (1 << static_cast<uint16_t>(ch)) >();
+			}
+
+			FORCEINLINE
+			static Channel GetSelectedChannel()
+			{
+				return Channel(ADC1->CSR & ADC1_CSR_CH);
 			}
 
 			#pragma inline=forced
 			static typename AdcTraits<mode>::result_t ReadSample()
 			{
-					if (mode == Mode10bit)
-					{
-						return *reinterpret_cast<volatile uint16_t*>(&ADC1->DRH);
-					}
-					else
-					{
-						return ADC1->DRH;
-					}
+				if(mode == Mode10bit) {
+					return *reinterpret_cast<volatile uint16_t*>(&ADC1->DRH);
+				}
+				else {
+					return ADC1->DRH;
+				}
 			}
 			
 			template<uint16_t mask>
@@ -200,6 +253,19 @@ namespace Mcudrv
 				ADC1->TDRL &= ~static_cast<uint8_t>(mask);
 				if(mask & 0xFF00) ADC1->TDRH &= ~mask >> 8UL;
 			}
+			FORCEINLINE
+			static void DisableSchmittTrigger(uint16_t mask)
+			{
+				ADC1->TDRL = static_cast<uint8_t>(mask);
+				if(mask & 0xFF00) ADC1->TDRH = mask >> 8UL;
+			}
+			FORCEINLINE
+			static void EnableSchmittTrigger(uint16_t mask)
+			{
+				ADC1->TDRL &= ~static_cast<uint8_t>(mask);
+				if(mask & 0xFF00) ADC1->TDRH &= ~mask >> 8UL;
+			}
+
 		};
 
 		template<>
