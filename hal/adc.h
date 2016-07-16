@@ -176,16 +176,14 @@ namespace Mcudrv {
 			{
 				ADC1->CR1 |= ADCEnable;
 			}
-			static void DisableContinuous()
+			static void ClearConfig(Cfg cfg)
 			{
-				ADC1->CR1 &= ~ContMode;
+				ADC1->CR1 &= ~cfg;
 			}
-			static void EnableContinuous()
+			static void SetConfig(Cfg cfg)
 			{
-				ADC1->CR1 |= ContMode;
+				ADC1->CR1 |= cfg;
 			}
-
-
 			static void Disable()
 			{
 				ADC1->CR1 &= ~ADCEnable;
