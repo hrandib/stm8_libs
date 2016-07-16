@@ -5,8 +5,6 @@
 #include "gpio.h"
 #include "adc.h"
 
-
-
 namespace Mcudrv {
 	namespace Wk {
 
@@ -19,13 +17,15 @@ namespace Mcudrv {
 
 	struct PowersSupplyDefaultFeatures {
 		enum {
-			PowerRating = 36
+			PowerRating = 36,
+			MaxCurrent = 1580 //mA
 		};
 	};
 
 	class PowerSupply : WakeData, public NullModule
 	{
 	private:
+		volatile static bool updFlag;
 		enum InstructionSet {
 			C_Voltage,
 			C_Current,
@@ -40,38 +40,41 @@ namespace Mcudrv {
 		static const Adcs::Channel IsenChannel = (Adcs::Channel)Adcs::PinToCh<Isen>::value;
 		static uint16_t rawVoltage;
 		static uint16_t rawCurrent;
-		FORCEINLINE
+//		FORCEINLINE
 		static uint16_t To_mA(uint16_t value)
 		{
-			return (value * 5) / 32;
+			value = ((value * 5) / 32);
+			return  value > 9 ? value - 10 : 0;
 		}
-		FORCEINLINE
-		static uint16_t To_mV_tens(uint16_t value)
+//		FORCEINLINE
+		static uint16_t ToTensOf_mV(uint16_t value)
 		{
-			return 1890U + ((value * 5) / 64);
+			return 1850U + ((value * 5) / 64);
 		}
 		_Pragma(VECTOR_ID(ADC1_EOC_vector))
 		__interrupt static void AdcISR()
 		{
 			Adc::ClearEvent(Adcs::EndOfConv);
+			Adc::Disable();
 			uint16_t result = 0;
 			for(uint8_t i = 0; i < 10; ++i) {
 				result += Adc::buffer[i];
 			}
-//			if(Adc::GetSelectedChannel() == VsenChannel) {
+			if(Adc::GetSelectedChannel() == VsenChannel) {
 				rawVoltage = result;
-//				Adc::SelectChannel(IsenChannel);
-//			}
-//			else {
-//				rawCurrent = result;
-//				Adc::SelectChannel(VsenChannel);
-//			}
+				Adc::SelectChannel(IsenChannel);
+			}
+			else {
+				rawCurrent = result;
+				Adc::SelectChannel(VsenChannel);
+			}
 		}
 	public:
 		enum
 		{
 			deviceMask = DevPowerSupply,
-			features = PowersSupplyDefaultFeatures::PowerRating
+			features = PowersSupplyDefaultFeatures::PowerRating,
+			MaxCurrent = PowersSupplyDefaultFeatures::MaxCurrent
 		};
 		FORCEINLINE
 		static void Init()
@@ -80,11 +83,10 @@ namespace Mcudrv {
 				Isen::SetConfig<GpioBase::In_float>();
 				Vsen::SetConfig<GpioBase::In_float>();
 				Adc::DisableSchmittTrigger<IsenChannel | VsenChannel>();
-				Adc::SelectChannel((Channel)VsenChannel);
+				Adc::SelectChannel((Channel)IsenChannel);
 				Adc::Init<Cfg(ADCEnable | ContMode | BufferEnable), Div2>();
 				Adc::EnableInterrupt(EndOfConv);
 				Adc::Enable();
-				Adc::StartConversion();
 			}
 			{ using namespace T2;
 				Ilim::SetConfig<GpioBase::Out_PushPull_fast>();
@@ -145,7 +147,13 @@ namespace Mcudrv {
 			default:
 				processedMask |= deviceMask;
 			}
-
+			if(updFlag) {
+				updFlag = false;
+				static uint8_t counter;
+				if(++counter & 0x20) { // div32 ~= 2Hz
+					counter = 0;
+				}
+			}
 		}
 		FORCEINLINE
 		static uint8_t GetDeviceFeatures(const uint8_t)
@@ -155,19 +163,14 @@ namespace Mcudrv {
 		FORCEINLINE
 		static void UpdIRQ()
 		{
-//			if(Adc::GetSelectedChannel() == IsenChannel) {
-//				Adc::SelectChannel(VsenChannel);
-//			}
-//			else {
-//				Adc::SelectChannel(IsenChannel);
-//			}
-//			Adc::EnableContinuous();
-//			Adc::StartConversion();
+			Adc::Enable();
+			Adc::StartConversion();
+			updFlag = true;
 		}
 
 		static uint16_t GetVoltage()
 		{
-			return To_mV_tens(rawVoltage);
+			return ToTensOf_mV(rawVoltage);
 		}
 		static uint16_t GetCurrent()
 		{
@@ -180,7 +183,7 @@ namespace Mcudrv {
 		}
 		static uint8_t GetLoad()
 		{
-			uint16_t result = (GetPower() * 26 + features/2) / features;
+			uint16_t result = (uint32_t)GetCurrent() * 255 / MaxCurrent;
 			return result < 0xFF ? result : 0xFF;
 		}
 		static void SetCurrentLimit(uint8_t limit)
@@ -190,6 +193,7 @@ namespace Mcudrv {
 	};
 	uint16_t PowerSupply::rawVoltage;
 	uint16_t PowerSupply::rawCurrent;
+	volatile bool PowerSupply::updFlag;
 
 	}//Wk
 }//Mcudrv
