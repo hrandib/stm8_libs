@@ -28,7 +28,7 @@
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __STM8S_H
 #define __STM8S_H
-
+#include <stdint.h>
 /** @addtogroup STM8S_StdPeriph_Driver
   * @{
   */
@@ -211,14 +211,14 @@
 #define		nullptr 0
 
 /*!< Signed integer types  */
-typedef   signed char     int8_t;
-typedef   signed short    int16_t;
-typedef   signed long     int32_t;
+//typedef   signed char     int8_t;
+//typedef   signed short    int16_t;
+//typedef   signed long     int32_t;
 
 /*!< Unsigned integer types  */
-typedef unsigned char     uint8_t;
-typedef unsigned short    uint16_t;
-typedef unsigned long     uint32_t;
+//typedef unsigned char     uint8_t;
+//typedef unsigned short    uint16_t;
+//typedef unsigned long     uint32_t;
 
 /*!< STM8 Standard Peripheral Library old types (maintained for legacy purpose) */
 

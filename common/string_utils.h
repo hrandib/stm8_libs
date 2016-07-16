@@ -87,6 +87,8 @@ namespace io
 		return itoa(value, result, base);
 	}
 
+	uint8_t* InsertDot(uint16_t value, uint8_t position, uint8_t* buf);
+
 }//io
 
 #endif // STRING_UTILS_H

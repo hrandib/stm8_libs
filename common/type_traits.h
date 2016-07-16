@@ -109,7 +109,7 @@ namespace stdx
 //Pinlist helpers
 
 //NumberToMask<3>::value == 0b0111;
-	template<uint16_t Num>
+	template<uint32_t Num>
 	struct NumberToMask
 	{
 		enum { value = 1 << (Num - 1) | NumberToMask<Num - 1>::value};

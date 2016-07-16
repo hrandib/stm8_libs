@@ -318,6 +318,11 @@ namespace Mcudrv
 		}
 	};
 
+	static inline void ReleaseSwimPin_Pd1()
+	{
+		CFG->GCR |= CFG_GCR_SWD;
+	}
+
 #define PINSDEF(x,y)	typedef TPin<Gpio##x, 0x01> P##y##0;\
 						typedef TPin<Gpio##x, 0x02> P##y##1;\
 						typedef TPin<Gpio##x, 0x04> P##y##2;\

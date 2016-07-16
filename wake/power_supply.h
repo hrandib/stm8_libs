@@ -4,16 +4,15 @@
 #include "wake_base.h"
 #include "gpio.h"
 #include "adc.h"
+#include "hd44780.h"
+#include "i2c.h"
+#include "string_utils.h"
 
 namespace Mcudrv {
 	namespace Wk {
 
 	typedef Pa2 Relay1;
 	typedef Pa1 Relay2;
-
-	typedef Pd3 Isen; //AIN4
-	typedef Pd2 Vsen; //AIN3
-	typedef Pd4 Ilim; //TIM2 CH1
 
 	struct PowersSupplyDefaultFeatures {
 		enum {
@@ -25,7 +24,6 @@ namespace Mcudrv {
 	class PowerSupply : WakeData, public NullModule
 	{
 	private:
-		volatile static bool updFlag;
 		enum InstructionSet {
 			C_Voltage,
 			C_Current,
@@ -35,18 +33,32 @@ namespace Mcudrv {
 			C_SetCurrentLim = 53
 		};
 
+		typedef Pd3 Isen; //AIN4
+		typedef Pd2 Vsen; //AIN3
+		typedef Pd4 Ilim; //TIM2 CH1
+
+		typedef Pinlist<Pc3, SequenceOf<4> > LcdDataBus;
+		typedef Pd1 LcdRs;
+		typedef Pc7 LcdE;
+		typedef Hd44780<LcdDataBus, LcdRs, LcdE> Lcd;
+
 		typedef Adcs::Adc1 Adc;
+
+		typedef Twis::SoftTwi<Twis::Standard, Pb4, Pb5> Twi;
+		typedef Twis::Lm75<Twi> Tsense;
+
 		static const Adcs::Channel VsenChannel = (Adcs::Channel)Adcs::PinToCh<Vsen>::value;
 		static const Adcs::Channel IsenChannel = (Adcs::Channel)Adcs::PinToCh<Isen>::value;
 		static uint16_t rawVoltage;
 		static uint16_t rawCurrent;
-//		FORCEINLINE
+		volatile static bool updFlag;
+		FORCEINLINE
 		static uint16_t To_mA(uint16_t value)
 		{
 			value = ((value * 5) / 32);
 			return  value > 9 ? value - 10 : 0;
 		}
-//		FORCEINLINE
+		FORCEINLINE
 		static uint16_t ToTensOf_mV(uint16_t value)
 		{
 			return 1850U + ((value * 5) / 64);
@@ -96,6 +108,8 @@ namespace Mcudrv {
 				Timer2::SetChannelCfg<Ch1, Output, ChannelCfgOut(Out_PWM_Mode1 | Out_PreloadEnable)>();
 				Timer2::ChannelEnable<Ch1>();
 			}
+			Twi::Init();
+			Lcd::Init();
 		}
 		FORCEINLINE
 		static void Process()
@@ -147,13 +161,6 @@ namespace Mcudrv {
 			default:
 				processedMask |= deviceMask;
 			}
-			if(updFlag) {
-				updFlag = false;
-				static uint8_t counter;
-				if(++counter & 0x20) { // div32 ~= 2Hz
-					counter = 0;
-				}
-			}
 		}
 		FORCEINLINE
 		static uint8_t GetDeviceFeatures(const uint8_t)
@@ -166,6 +173,32 @@ namespace Mcudrv {
 			Adc::Enable();
 			Adc::StartConversion();
 			updFlag = true;
+		}
+		FORCEINLINE
+		static void DisplayRefresh()
+		{
+			if(updFlag) {
+				updFlag = false;
+				static uint8_t counter;
+				if(++counter & 0x20) { // div32 ~= 2Hz
+					counter = 0;
+					uint8_t buf[16];
+					Lcd::Clear();
+					//Lcd::SetPosition(0);
+					uint8_t* ptr = io::InsertDot(GetVoltage(), 2, buf);
+					*ptr++ = 'v';
+					*ptr++ = ' ';
+					io::utoa16(GetCurrent(), ptr);
+//					*ptr++ = 'm'; *ptr++ = 'A';
+//					*ptr = '\0';
+					Lcd::Puts(buf);
+					Lcd::SetPosition(0, 1);
+					uint16_t temperature = Tsense::Read();
+					Lcd::Puts(io::utoa16(temperature/2, buf));
+					Lcd::Putch('.');
+					Lcd::Putch(temperature & 0x01 ? '5' : '0');
+				}
+			}
 		}
 
 		static uint16_t GetVoltage()
