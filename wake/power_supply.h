@@ -98,7 +98,6 @@ namespace Mcudrv {
 				Adc::SelectChannel((Channel)IsenChannel);
 				Adc::Init<Cfg(ADCEnable | ContMode | BufferEnable), Div2>();
 				Adc::EnableInterrupt(EndOfConv);
-				Adc::Enable();
 			}
 			{ using namespace T2;
 				Ilim::SetConfig<GpioBase::Out_PushPull_fast>();
