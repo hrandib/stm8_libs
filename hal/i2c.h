@@ -228,8 +228,8 @@ namespace Twis
 		static int16_t Read(uint8_t devAddr = 0)
 		{
 			int16_t result;
-			Twi::Read(BaseAddr | devAddr, (uint8_t*)&result, 2);
-			return result / 128;
+			bool success = Twi::Read(BaseAddr | devAddr, (uint8_t*)&result, 2);
+			return success ? result / 128 : 0;
 		}
 	};
 

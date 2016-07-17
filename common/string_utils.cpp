@@ -21,7 +21,7 @@ uint8_t* InsertDot(uint16_t value, uint8_t position, uint8_t* buf)
 				memmove(buf + len - position + 1, buf + len - position, position + 1);
 				buf[len - position] = '.';
 			}
-			return buf + len + 1;
+			return buf;
 		}
 }//io
 

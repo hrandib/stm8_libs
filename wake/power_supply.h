@@ -44,13 +44,11 @@ namespace Mcudrv {
 		static uint16_t rawVoltage;
 		static uint16_t rawCurrent;
 
-		FORCEINLINE
 		static uint16_t To_mA(uint16_t value)
 		{
 			value = ((value * 5) / 32);
 			return  value > 9 ? value - 10 : 0;
 		}
-		FORCEINLINE
 		static uint16_t ToTensOf_mV(uint16_t value)
 		{
 			return 1850U + ((value * 5) / 64);
@@ -100,7 +98,6 @@ namespace Mcudrv {
 				Timer2::ChannelEnable<Ch1>();
 			}
 		}
-		FORCEINLINE
 		static void Process()
 		{
 			uint16_t* const bufval = (uint16_t*)&pdata.buf[1];
@@ -151,12 +148,10 @@ namespace Mcudrv {
 				processedMask |= deviceMask;
 			}
 		}
-		FORCEINLINE
 		static uint8_t GetDeviceFeatures(const uint8_t)
 		{
 			return features;
 		}
-		FORCEINLINE
 		static void UpdIRQ()
 		{
 			Adc::Enable();
@@ -197,20 +192,19 @@ namespace Mcudrv {
 		typedef Pd1 LcdRs;
 		typedef Pc7 LcdE;
 		typedef Hd44780<LcdDataBus, LcdRs, LcdE> Lcd;
-
+		enum LcdPatterns { SymDegree };
 		volatile static bool updFlag;
 	public:
-		FORCEINLINE
 		static void Init()
 		{
+			static const uint8_t degreePattern[8] = {0x1C, 0x14, 0x1C, 0};
 			Lcd::Init();
+			Lcd::BuildCustomChar(0, degreePattern);
 		}
-		FORCEINLINE
 		static void UpdIRQ()
 		{
 			updFlag = true;
 		}
-		FORCEINLINE
 		static void Refresh()
 		{
 			if(updFlag) {
@@ -218,21 +212,19 @@ namespace Mcudrv {
 				static uint8_t counter;
 				if(++counter & 0x20) { // div32 ~= 2Hz
 					counter = 0;
-					uint8_t buf[16];
+					uint8_t buf[8];
 					Lcd::Clear();
-					//Lcd::SetPosition(0);
-					uint8_t* ptr = io::InsertDot(PowerSupply::GetVoltage(), 2, buf);
-					*ptr++ = 'v';
-					*ptr++ = ' ';
-					io::utoa16(PowerSupply::GetCurrent(), ptr);
-//					*ptr++ = 'm'; *ptr++ = 'A';
-//					*ptr = '\0';
-					Lcd::Puts(buf);
+					Lcd::Puts(io::InsertDot(PowerSupply::GetVoltage(), 2, buf));
+					Lcd::Putch('V');
+					Lcd::SetPosition(10);
+					Lcd::Puts(io::InsertDot(PowerSupply::GetCurrent(), 3, buf));
+					Lcd::Putch('A');
 					Lcd::SetPosition(0, 1);
-					uint16_t temperature = Tsensor_LM75::Read();
-					Lcd::Puts(io::utoa16(temperature/2, buf));
-					Lcd::Putch('.');
-					Lcd::Putch(temperature & 0x01 ? '5' : '0');
+					Lcd::Puts(io::InsertDot(PowerSupply::GetPower(), 1, buf));
+					Lcd::Putch('W');
+					Lcd::SetPosition(10, 1);
+					Lcd::Puts(io::InsertDot(Tsensor_LM75::Read(), 1, buf));
+					Lcd::Putch(SymDegree);
 				}
 			}
 		}
