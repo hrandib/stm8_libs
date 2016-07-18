@@ -71,6 +71,7 @@ public:
 	static void Init(Cfg cfg, Div div)
 	{
 		GpioC::SetConfig<P5 | P6, GpioBase::Out_PushPull_fast>();
+		Pc7::SetConfig<GpioBase::In_Pullup>();
 		SPI->CR1 = (cfg & 0xFF) | (uint8_t)(div << DIVOFFSET);
 		if(cfg & 0xFF00) {
 			SPI->CR2 = cfg >> 8;
@@ -121,6 +122,7 @@ public:
 	}
 	static void WaitForFinish()
 	{
+		__no_operation();
 		__no_operation();
 		while(IsEvent(EvBUSY))
 			;
