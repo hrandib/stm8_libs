@@ -1,6 +1,7 @@
 #ifndef SPI_H
 #define SPI_H
 #include "stm8s.h"
+#include "gpio.h"
 
 namespace Mcudrv {
 
@@ -69,6 +70,7 @@ class Spi : public SpiBase
 public:
 	static void Init(Cfg cfg, Div div)
 	{
+		GpioC::SetConfig<P5 | P6, GpioBase::Out_PushPull_fast>();
 		SPI->CR1 = (cfg & 0xFF) | (uint8_t)(div << DIVOFFSET);
 		if(cfg & 0xFF00) {
 			SPI->CR2 = cfg >> 8;
