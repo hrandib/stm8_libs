@@ -379,13 +379,13 @@ namespace Mcudrv
 		enum Cfg
 			{
 				Default = 0,
-				CEN = TIM2_CR1_CEN,			// Counter enable
-				UDIS = TIM2_CR1_UDIS,		// A UEV is not generated, shadow registers keep their value (ARR, PSC).
-											// The counter and the prescaler are re-initialized if the UG bit is set.
+				CEN = TIM2_CR1_CEN,		// Counter enable
+				UDIS = TIM2_CR1_UDIS,	// A UEV is not generated, shadow registers keep their value (ARR, PSC).
+															// The counter and the prescaler are re-initialized if the UG bit is set.
 				URS = TIM2_CR1_URS,		// An update interrupt request is sent only when the counter reaches the
-										// overflow/underflow.
-				GPbit = TIM2_CR1_OPM,	// General purpose use
-				ARPE = TIM2_CR1_ARPE   // TIM2_ARR register is buffered through a preload register
+															// overflow/underflow.
+				OPM = TIM2_CR1_OPM,		// One Pulse Mode
+				ARPE = TIM2_CR1_ARPE  // TIM2_ARR register is buffered through a preload register
 			};
 		enum Ints
 			{
