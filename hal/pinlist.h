@@ -107,6 +107,19 @@ struct Pinlist : GpioBase
 		if(mask_ & 0x40) S6::template SetConfig<cfg>();
 		if(mask_ & 0x80) S7::template SetConfig<cfg>();
 	}
+	#pragma inline=forced
+	static uint8_t Size()
+	{
+		const uint8_t size = S0::mask == 0 ? 0 :
+												S1::mask == 0 ? 1	:
+												S2::mask == 0 ? 2	:
+												S3::mask == 0 ? 3	:
+												S4::mask == 0 ? 4	:
+												S5::mask == 0 ? 5	:
+												S6::mask == 0 ? 6	:
+												S7::mask == 0 ? 7	: 8;
+		return size;
+	}
 };
 
 template<uint8_t seq>
@@ -151,6 +164,11 @@ struct Pinlist<First, SequenceOf<Seq> > : GpioBase
 	static void SetConfig()
 	{
 		Port::template SetConfig<mask, cfg>();
+	}
+	#pragma inline=forced
+	static uint8_t Size()
+	{
+		return Seq;
 	}
 };
 
