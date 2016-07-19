@@ -163,6 +163,41 @@ public:
 
 };
 
+template<typename Spi, typename Cs>
+class Max6675
+{
+private:
+	enum { TC_EXIST_MASK = 0x04 };
+public:
+	static void Init()
+	{
+		Cs::Set();
+		Cs::template SetConfig<GpioBase::Out_PushPull_fast>();
+	}
+	static int16_t Read()
+	{
+		Cs::Clear();
+		if(Spi::IsEvent(Spi::EvRXNE)) {
+			(void)Spi::Read();
+		}
+		uint16_t value = Spi::ReadWrite(0xFF) << 8;
+		value |= Spi::ReadWrite(0xFF);
+		Spi::WaitForFinish();
+		Cs::Set();
+		if(!(value & TC_EXIST_MASK)) {
+			value >>= 3;
+			if(value > (2 * 4)) {
+				value -= (3 * 4); //coarse compensation of IC selfheating
+			}
+			else value = 0;
+			return value;
+		}
+		else {
+			return -1;
+		}
+	}
+};
+
 }//Mcudrv
 
 #endif // SPI_H
