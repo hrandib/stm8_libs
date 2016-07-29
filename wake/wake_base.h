@@ -199,6 +199,10 @@ namespace Mcudrv
 			DevCustom = 0x80
 		};
 
+		enum CustomDeviceID {
+			CustomID_Themostat = 0x01
+		};
+
 		enum AddrType
 		{
 			addrGroup,
@@ -245,12 +249,12 @@ namespace Mcudrv
 			}
 			static uint8_t GetDeviceFeatures(uint8_t deviceMask)
 			{
-				return deviceMask == Module1::deviceMask ? Module1::features :
-						deviceMask == Module2::deviceMask ? Module2::features :
-						deviceMask == Module3::deviceMask ? Module3::features :
-						deviceMask == Module4::deviceMask ? Module4::features :
-						deviceMask == Module5::deviceMask ? Module5::features :
-						deviceMask == Module6::deviceMask ? Module6::features : 0;
+				return deviceMask & Module1::deviceMask ? Module1::GetDeviceFeatures(deviceMask) :
+						deviceMask & Module2::deviceMask ? Module2::GetDeviceFeatures(deviceMask) :
+						deviceMask & Module3::deviceMask ? Module3::GetDeviceFeatures(deviceMask) :
+						deviceMask & Module4::deviceMask ? Module4::GetDeviceFeatures(deviceMask) :
+						deviceMask & Module5::deviceMask ? Module5::GetDeviceFeatures(deviceMask) :
+						deviceMask & Module6::deviceMask ? Module6::GetDeviceFeatures(deviceMask) : 0;
 			}
 			static void SaveState()		//module should be save only if settings changed
 			{
