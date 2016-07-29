@@ -518,8 +518,8 @@ namespace Mcudrv
 						break;
 					case C_SAVESETTINGS:
 						if(!pdata.n) {
-							moduleList::SaveState();
 							pdata.buf[0] = ERR_NO;
+							moduleList::SaveState();
 						}
 						else pdata.buf[0] = ERR_PA;
 						pdata.n = 1;
