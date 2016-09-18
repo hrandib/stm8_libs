@@ -41,8 +41,11 @@ namespace Mcudrv {
 
 		static const Adcs::Channel VsenChannel = (Adcs::Channel)Adcs::PinToCh<Vsen>::value;
 		static const Adcs::Channel IsenChannel = (Adcs::Channel)Adcs::PinToCh<Isen>::value;
-		static uint16_t rawVoltage;
-		static uint16_t rawCurrent;
+
+		//32 samples simple moving average
+		enum { MA_SIZE = 1U << 5 };
+		static uint16_t rawVoltage[MA_SIZE];
+		static uint16_t rawCurrent[MA_SIZE];
 
 		static uint16_t To_mA(uint16_t value)
 		{
@@ -58,17 +61,21 @@ namespace Mcudrv {
 		{
 			Adc::ClearEvent(Adcs::EndOfConv);
 			Adc::Disable();
+			static uint8_t maIndex;
 			uint16_t result = 0;
 			for(uint8_t i = 0; i < 10; ++i) {
 				result += Adc::buffer[i];
 			}
 			if(Adc::GetSelectedChannel() == VsenChannel) {
-				rawVoltage = result;
+				rawVoltage[maIndex] = result;
 				Adc::SelectChannel(IsenChannel);
 			}
 			else {
-				rawCurrent = result;
+				rawCurrent[maIndex] = result;
 				Adc::SelectChannel(VsenChannel);
+				if(++maIndex == MA_SIZE) {
+					maIndex = 0;
+				}
 			}
 		}
 	public:
@@ -78,6 +85,12 @@ namespace Mcudrv {
 			features = PowersSupplyDefaultFeatures::PowerRating,
 			MaxCurrent = PowersSupplyDefaultFeatures::MaxCurrent
 		};
+		static struct VI
+		{
+			uint16_t voltage;
+			uint16_t current;
+		} vi;
+
 		FORCEINLINE
 		static void Init()
 		{
@@ -85,7 +98,7 @@ namespace Mcudrv {
 				Isen::SetConfig<GpioBase::In_float>();
 				Vsen::SetConfig<GpioBase::In_float>();
 				Adc::DisableSchmittTrigger<IsenChannel | VsenChannel>();
-				Adc::SelectChannel((Channel)IsenChannel);
+				Adc::SelectChannel((Channel)VsenChannel);
 				Adc::Init<Cfg(ADCEnable | ContMode | BufferEnable), Div2>();
 				Adc::EnableInterrupt(EndOfConv);
 			}
@@ -106,12 +119,14 @@ namespace Mcudrv {
 				pdata.buf[0] = ERR_NO;
 				if(!pdata.n) {
 					pdata.n = 6;
+					VIRefresh();
 					bufval[0] = GetVoltage();
 					bufval[1] = GetCurrent();
 					*(uint8_t*)&bufval[2] = GetLoad();
 				}
 				else if(pdata.n == 1 && pdata.buf[0] < 4) {
 					pdata.n = 3;
+					VIRefresh();
 					switch(pdata.buf[0]) {
 					case C_Voltage:
 						*bufval = GetVoltage();
@@ -158,13 +173,23 @@ namespace Mcudrv {
 			Adc::StartConversion();
 		}
 
+		static void VIRefresh()
+		{
+			uint32_t voltage = 0, current = 0;
+			for(uint8_t i = 0; i < MA_SIZE; ++i) {
+				voltage += rawVoltage[i];
+				current += rawCurrent[i];
+			}
+			vi.voltage = ToTensOf_mV(voltage >> 5);
+			vi.current = To_mA(current >> 5);
+		}
 		static uint16_t GetVoltage()
 		{
-			return ToTensOf_mV(rawVoltage);
+			return vi.voltage;
 		}
 		static uint16_t GetCurrent()
 		{
-			return To_mA(rawCurrent);
+			return vi.current;
 		}
 		static uint16_t GetPower()
 		{
@@ -182,8 +207,9 @@ namespace Mcudrv {
 		}
 	};
 
-	uint16_t PowerSupply::rawVoltage;
-	uint16_t PowerSupply::rawCurrent;
+	uint16_t PowerSupply::rawVoltage[PowerSupply::MA_SIZE];
+	uint16_t PowerSupply::rawCurrent[PowerSupply::MA_SIZE];
+	PowerSupply::VI PowerSupply::vi;
 
 	class Display : public NullModule
 	{
@@ -213,6 +239,7 @@ namespace Mcudrv {
 				if(++counter & 0x20) { // div32 ~= 2Hz
 					counter = 0;
 					uint8_t buf[8];
+					PowerSupply::VIRefresh();
 					Lcd::Clear();
 					Lcd::Puts(io::InsertDot(PowerSupply::GetVoltage(), 2, buf));
 					Lcd::Putch('V');

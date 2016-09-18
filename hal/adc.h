@@ -94,8 +94,8 @@ namespace Mcudrv {
 		};
 	};
 
-	//TODO: implement
 #elif defined (STM8S105)
+	//TODO: implement
 #endif
 
 	enum Ints {
