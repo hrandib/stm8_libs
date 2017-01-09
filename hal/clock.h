@@ -3,7 +3,9 @@
 #include "stdint.h"
 #include "stm8s.h"
 
-static const uint32_t F_CPU = 2000000UL;
+#ifndef F_CPU
+#error "F_CPU should be defined"
+#endif
 
 namespace Mcudrv {
 namespace SysClock {
