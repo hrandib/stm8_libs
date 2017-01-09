@@ -535,6 +535,10 @@ namespace Mcudrv
 					Regs()->ARRH = c >> 8;
 					Regs()->ARRL = c;
 				}
+				static void WritePrescaler(Div div)
+				{
+					Regs()->PSCR = div;
+				}
 
 				FORCEINLINE
 				template <Channel Ch, ChannelType type, ChannelCfgIn cfg>
