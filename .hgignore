@@ -2,3 +2,4 @@ syntax: glob
 *.autosave
 hal/adc.h.S14696
 common/mystdint.h
+.gitignore
