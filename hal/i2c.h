@@ -394,7 +394,7 @@ namespace Twis
 			if(!SendCommand(CmdPressure)) return false;
 			delay_ms(PMeasureDelay);
 			int32_t rawvalueP = GetReg(RegData);
-			if(Oss) rawvalueP = (rawvalueP << 8 | (GetReg(RegXlsb)) & 0xFF) >> (8 - Oss);
+            if(Oss) rawvalueP = (rawvalueP << 8 | (GetReg(RegXlsb) & 0xFF)) >> (8 - Oss);
 			int32_t b6 = b5 - 4000;
 			x1 = ((int32_t)((int16_t)calArr[B2]) * (b6 * b6 / (1U << 12))) / (1U << 11);
 			x2 = (int32_t)((int16_t)calArr[AC2]) * b6 / (1U << 11);
