@@ -5,10 +5,11 @@ StaticLibrary {
     name: "stm8lib"
 
     Depends { name: "cpp" }
-    Depends { name: "Common options" }
+    Depends { name: "common_options" }
 
     cpp.includePaths: [
         FileInfo.joinPaths(sourceDirectory, "hal"),
+        FileInfo.joinPaths(sourceDirectory, "common")
     ]
 
     Group {
@@ -20,10 +21,20 @@ StaticLibrary {
         ]
     }
 
+    Group {
+        name: "common"
+        prefix: "common/"
+        files: [
+            "*.h",
+            "*.cpp"
+        ]
+    }
+
     Export {
         Depends { name: "cpp" }
         cpp.includePaths: [
-            FileInfo.joinPaths(product.sourceDirectory, "hal")
+            FileInfo.joinPaths(product.sourceDirectory, "hal"),
+            FileInfo.joinPaths(product.sourceDirectory, "common")
         ]
     }
 }
