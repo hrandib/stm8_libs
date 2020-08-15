@@ -2968,6 +2968,12 @@ Comments :    The idea is to handle directly with the bit name. For that, it is
 
 /* Exported functions ------------------------------------------------------- */
 
+//Suppress warnings for clang code model
+#ifdef __clang__
+#define static_assert(a, b)
+#define __interrupt
+#endif
+
 #endif /* __STM8S_H */
 
 /**
