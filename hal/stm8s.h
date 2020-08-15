@@ -2762,7 +2762,7 @@ CFG_TypeDef;
  #define STRINGVECTOR(x) #x
  #define VECTOR_ID(x) STRINGVECTOR( vector = (x) )
  #define INTERRUPT_HANDLER( a, b )  \
- _Pragma( VECTOR_ID( (b)+2 ) )        \
+ _Pragma( VECTOR_ID( (b) ) )        \
  __interrupt void (a)( void )
  #define INTERRUPT_HANDLER_TRAP(a) \
  _Pragma( VECTOR_ID( 1 ) ) \
