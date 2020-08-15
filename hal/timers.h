@@ -314,10 +314,10 @@ namespace Mcudrv
 			static void ChannelDisable()
 			{
 				static_assert(Ch != All_Ch, "error in __FUNC__");
-				if (Ch & Ch4 == Ch4) TIM1->CCER2 &= ~(0x0F << 4);
-				if (Ch & Ch3 == Ch3) TIM1->CCER2 &= ~0x0F;
-				if (Ch & Ch2 == Ch2) TIM1->CCER1 &= ~(0x0F << 4);
-				if (Ch & Ch1 == Ch1) TIM1->CCER1 &= ~0x0F;
+                if ((Ch & Ch4) == Ch4) TIM1->CCER2 &= ~(0x0F << 4);
+                if ((Ch & Ch3) == Ch3) TIM1->CCER2 &= ~0x0F;
+                if ((Ch & Ch2) == Ch2) TIM1->CCER1 &= ~(0x0F << 4);
+                if ((Ch & Ch1) == Ch1) TIM1->CCER1 &= ~0x0F;
 			}
 			
 			FORCEINLINE
@@ -325,9 +325,9 @@ namespace Mcudrv
 			static void ChannelEnableComplementary()
 			{
 				static_assert(Ch == Ch4, "error in __FUNC__");
-				if (Ch & Ch3 == Ch3) TIM1->CCER2 |= TIM1_CCER2_CC3NE | (level << 3);
-				if (Ch & Ch2 == Ch2) TIM1->CCER1 |= TIM1_CCER1_CC2NE | ((level << 3) << 4);
-				if (Ch & Ch1 == Ch1) TIM1->CCER1 |= TIM1_CCER1_CC1NE | (level << 3);
+                if ((Ch & Ch3) == Ch3) TIM1->CCER2 |= TIM1_CCER2_CC3NE | (level << 3);
+                if ((Ch & Ch2) == Ch2) TIM1->CCER1 |= TIM1_CCER1_CC2NE | ((level << 3) << 4);
+                if ((Ch & Ch1) == Ch1) TIM1->CCER1 |= TIM1_CCER1_CC1NE | (level << 3);
 			}
  		
 			FORCEINLINE
