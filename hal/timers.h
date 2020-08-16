@@ -102,6 +102,11 @@ namespace Mcudrv
 										// updated only when COMG bit is set in the TIM1_EGR register.
 		};
 
+        inline Cfg operator|(Cfg a, Cfg b)
+        {
+            return static_cast<Cfg>(static_cast<int>(a) | static_cast<int>(b));
+        }
+
 		enum SlaveModeCtrl
 		{
 //			Default = 0,
