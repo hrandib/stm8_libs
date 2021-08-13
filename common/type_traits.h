@@ -71,6 +71,27 @@ namespace stdx
 				::type type;
 	};
 
+    template<typename T>
+    struct TypeMaxvalue
+    {
+        static const T value = -1;
+    };
+
+    template<> struct TypeMaxvalue<uint8_t>
+    {
+        static const uint8_t value = UINT8_MAX;
+    };
+
+    template<> struct TypeMaxvalue<uint16_t>
+    {
+        static const uint16_t value = UINT16_MAX;
+    };
+
+    template<> struct TypeMaxvalue<uint32_t>
+    {
+        static const uint32_t value = UINT32_MAX;
+    };
+
 	template<typename T>
 	struct make_unsigned
 	{
