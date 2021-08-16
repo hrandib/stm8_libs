@@ -28,26 +28,25 @@
 
 namespace utils {
 
-template<typename VAL_TYPE, VAL_TYPE MIN, VAL_TYPE MAX, VAL_TYPE STEP>
+template<typename value_type, value_type MIN, value_type MAX, value_type STEP>
 class RangeLinear
 {
-    VAL_TYPE value_;
+    value_type value_;
 public:
     enum {
         MAXVAL = MAX,
         MINVAL = MIN,
         STEPVAL = STEP,
     };
-    RangeLinear(VAL_TYPE init = MIN)
-      : value_(init)
+    RangeLinear(value_type init = MIN) : value_(init)
     { }
 
-    operator VAL_TYPE() const
+    operator value_type() const
     {
         return value_;
     }
 
-    VAL_TYPE operator++()
+    value_type operator++()
     {
         if(value_ > (MAX - STEP)) {
             value_ = MAX;
@@ -58,7 +57,7 @@ public:
         return value_;
     }
 
-    VAL_TYPE operator--()
+    value_type operator--()
     {
         if(value_ < (MIN + STEP)) {
             value_ = MIN;
@@ -69,7 +68,7 @@ public:
         return value_;
     }
 
-    VAL_TYPE operator=(VAL_TYPE value)
+    value_type operator=(value_type value)
     {
         if(value > MAX) {
             value_ = MAX;
@@ -105,9 +104,7 @@ class ButtonsLongPress
         COUNTER_MAXVAL = stdx::TypeMaxvalue<Counter_t>::value,
     };
 public:
-    ButtonsLongPress()
-      : callbacks_()
-      , pollCounters_()
+    ButtonsLongPress() : callbacks_(), pollCounters_()
     { }
     // Active level = LOW, the button with pullup
     void UpdateState(uint8_t buttonsMask)
