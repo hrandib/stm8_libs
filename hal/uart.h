@@ -273,47 +273,40 @@ public:
         EnableInterrupt(IrqTxEmpty);
         return st;
     }
-    static bool Puts(const uint8_t* s)
+    static uint16_t Puts(const uint8_t* s)
     {
-        while(*s) {
-            if(!txbuf_.Write(*s++))
-                return false;
-        }
+        const uint8_t* begin = s;
+        while(*s && !txbuf_.Write(*s++))
+            ;
         EnableInterrupt(IrqTxEmpty);
-        return true;
+        return s - begin;
     }
-    static bool Puts(const char* s)
+    static uint16_t Puts(const char* s)
     {
         return Puts((const uint8_t*)s);
     }
     template<typename T>
-    static bool Puts(T value, uint8_t base = 10)
+    static uint16_t Puts(T value, uint8_t base = 10)
     {
         uint8_t buf[16];
         return Puts(io::xtoa(value, buf, base));
     }
 
-    static bool Putbuf(const uint8_t* buf, uint16_t size)
+    static uint16_t Putbuf(const uint8_t* buf, uint16_t size)
     {
-        while(size--) {
-            if(!txbuf_.Write(*buf++))
-                return false;
-        }
+        uint16_t target_size = size;
+        while(size-- && txbuf_.Write(*buf++))
+            ;
         EnableInterrupt(IrqTxEmpty);
-        return true;
+        return target_size - size;
     }
 
     FORCEINLINE
     template<typename T>
-    static void Putbuf(T* buf, uint8_t size)
+    static uint16_t Putbuf(T* buf, uint8_t size)
     {
         static_assert(sizeof(T) == 1, "Type size for Putbuf func must be 1");
-        Putbuf((const uint8_t*)buf, size);
-    }
-
-    static void Newline()
-    {
-        Puts("\r\n");
+        return Putbuf((const uint8_t*)buf, size);
     }
 
     FORCEINLINE
