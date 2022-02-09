@@ -25,16 +25,16 @@ uint8_t* xtoa(T value, uint8_t* result, uint8_t base = 10)
     } while(quotient);
     if(stdx::is_signed<T>::value && stdx::is_negative(value))
         *out++ = '-';
+    uint8_t* end = out;
     *out-- = '\0';
     // reverse string
     uint8_t tmp_char;
-    uint8_t* ptr1 = result;
-    while(ptr1 < out) {
+    while(result < out) {
         tmp_char = *out;
-        *out-- = *ptr1;
-        *ptr1++ = tmp_char;
+        *out-- = *result;
+        *result++ = tmp_char;
     }
-    return ptr1 + 1;
+    return end;
 }
 
 #pragma inline = forced
