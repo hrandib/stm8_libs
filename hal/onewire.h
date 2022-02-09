@@ -275,8 +275,15 @@ private:
     typedef typename Ow::Descriptor Descriptor;
     static Descriptor romArr[devMaxNumber];
     static uint8_t devNumber;
-    enum InstuctionSet { CmdConvert = 0x44, CmdRead = 0xBE };
+    enum InstuctionSet { CmdConvert = 0x44, CmdRead = 0xBE, CmdWriteScratchpad = 0x4E };
 public:
+    // Affects conversion time
+    enum Resolution {
+        RES_9BIT, //100ms
+        RES_10BIT, //200ms
+        RES_11BIT, //400ms
+        RES_12BIT  //750ms
+    };
     static uint8_t Init()
     {
         devNumber = Ow::Search(romArr, devMaxNumber);
@@ -292,7 +299,7 @@ public:
         else
             return false;
     }
-    static uint16_t Get(uint8_t index)
+    static int16_t Get(uint8_t index)
     {
         if(Ow::Reset()) {
             Ow::MatchRom(romArr[index]);
@@ -302,7 +309,7 @@ public:
         else
             return 0xFFFF;
     }
-    static uint16_t* Get(uint16_t* valArray)
+    static int16_t* Get(int16_t* valArray)
     {
         for(uint8_t i = 0; i < devNumber; ++i) {
             valArray[i] = Get(i);
@@ -318,9 +325,21 @@ public:
     {
         Ow::template PrintID<Ostream>(romArr, devNumber);
     }
-    static uint8_t GetSize()
+    static uint8_t GetSensorsNumber()
     {
         return devNumber;
+    }
+    static bool SetResolution(Resolution res)
+    {
+        if(Ow::Reset()) {
+            Ow::SkipRom();
+            Ow::Write(CmdWriteScratchpad);
+            uint8_t data[3] = { 0x00, 0x00, res << 5 };
+            Ow::Write(data, 3);
+            return true;
+        }
+        else
+            return false;
     }
 };
 template<typename Ow, uint8_t devMaxNumber>
