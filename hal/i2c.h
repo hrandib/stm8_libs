@@ -220,7 +220,7 @@ public:
     {
         int16_t result;
         bool success = Twi::Read(BaseAddr | devAddr, (uint8_t*)&result, 2);
-        return success ? result / 128 : 255;
+        return success ? result / 128 : 0xFFFF;
     }
 
     static bool Detect(uint8_t devAddr)
