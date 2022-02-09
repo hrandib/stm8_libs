@@ -316,7 +316,7 @@ public:
         }
         return valArray;
     }
-    static Descriptor* GetId(uint8_t index)
+    static const Descriptor* GetId(uint8_t index)
     {
         return *romArr[index];
     }
