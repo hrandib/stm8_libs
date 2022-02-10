@@ -42,7 +42,7 @@ private:
         disableInterrupts();
         OwPin::Clear();
         if(val)
-            delay_us<10>();
+            delay_us<5>();
         else
             delay_us<65>();
         OwPin::Set();
