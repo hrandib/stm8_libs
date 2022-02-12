@@ -276,7 +276,7 @@ public:
     static uint16_t Puts(const uint8_t* s)
     {
         const uint8_t* begin = s;
-        while(*s && !txbuf_.Write(*s++))
+        while(*s && txbuf_.Write(*s++))
             ;
         EnableInterrupt(IrqTxEmpty);
         return s - begin;
@@ -307,6 +307,13 @@ public:
     {
         static_assert(sizeof(T) == 1, "Type size for Putbuf func must be 1");
         return Putbuf((const uint8_t*)buf, size);
+    }
+
+    FORCEINLINE
+    template<typename T>
+    static uint16_t Putbuf(T& obj)
+    {
+        return Putbuf((const uint8_t*)&obj, sizeof(T));
     }
 
     FORCEINLINE
