@@ -275,7 +275,7 @@ private:
     typedef typename Ow::Descriptor Descriptor;
     static Descriptor romArr[devMaxNumber];
     static uint8_t devNumber;
-    enum InstuctionSet { CmdConvert = 0x44, CmdRead = 0xBE, CmdWriteScratchpad = 0x4E };
+    enum InstructionSet { CmdConvert = 0x44, CmdRead = 0xBE, CmdWriteScratchpad = 0x4E };
 public:
     // Affects conversion time
     enum Resolution {
