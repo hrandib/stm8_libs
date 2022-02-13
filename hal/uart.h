@@ -229,12 +229,6 @@ public:
             Putch(*buf++);
         }
     }
-    static void Putbuf(const uint8_t* buf, uint8_t size)
-    {
-        while(size--) {
-            Putch(*buf++);
-        }
-    }
     static uint8_t Getch()
     {
         while(!IsEvent(EvRxne))
@@ -273,6 +267,7 @@ public:
         EnableInterrupt(IrqTxEmpty);
         return st;
     }
+    NOINLINE
     static uint16_t Puts(const uint8_t* s)
     {
         const uint8_t* begin = s;
@@ -292,6 +287,7 @@ public:
         return Puts(io::xtoa(value, buf, base));
     }
 
+    NOINLINE
     static uint16_t Putbuf(const uint8_t* buf, uint16_t size)
     {
         uint16_t target_size = size;
@@ -303,13 +299,12 @@ public:
 
     FORCEINLINE
     template<typename T>
-    static uint16_t Putbuf(T* buf, uint8_t size)
+    static uint16_t Putbuf(T* buf, uint16_t size)
     {
         static_assert(sizeof(T) == 1, "Type size for Putbuf func must be 1");
         return Putbuf((const uint8_t*)buf, size);
     }
 
-    FORCEINLINE
     template<typename T>
     static uint16_t Putbuf(T& obj)
     {
@@ -367,68 +362,6 @@ template<uint16_t TxBufSize, uint16_t RxBufSize, typename DEpin>
 CircularBuffer<TxBufSize> UartIrq<TxBufSize, RxBufSize, DEpin>::txbuf_;
 template<uint16_t TxBufSize, uint16_t RxBufSize, typename DEpin>
 CircularBuffer<RxBufSize> UartIrq<TxBufSize, RxBufSize, DEpin>::rxbuf_;
-
-/*	Template for software UART implementation
- *
-        template<typename TxPin,
-                         typename RxPin = Nullpin,
-                         uint16_t TxBufSize = 32,
-                         uint16_t RxBufSize = TxBufSize>
-        class SoftUart
-        {
-        private:
-                static CircularBuffer<TxBufSize> txbuf_;
-                static CircularBuffer<RxBufSize> rxbuf_;
-
-        public:
-                template<uint32_t Baudrate>
-                struct Divider
-                {
-                        static const uint16_t Value = (uint16_t)(F_CPU / (3.0 * Baudrate) + 0.5);
-                };
-
-                static void Init()
-                {
-
-                }
-                FORCEINLINE
-                static void ISR()
-                {
-
-                }
-                static bool Putch(const uint8_t c)
-                {
-                        bool st = txbuf_.Write(c);
-//			EnableInterrupt(IrqTxEmpty);
-                        return st;
-                }
-                static bool Puts(const uint8_t* s)
-                {
-                        while(*s)
-                        {
-                                if(!txbuf_.Write(*s++)) return false;
-                        }
-//			EnableInterrupt(IrqTxEmpty);
-                        return true;
-                }
-                static bool Puts(const char* s)
-                {
-                        return Puts((const uint8_t*)s);
-                }
-                template<typename T>
-                static bool Puts(T value, uint8_t base = 10)
-                {
-                        uint8_t buf[16];
-                        return Puts(io::xtoa(value, buf, base));
-                }
-
-        };
-
-        template<typename TxPin, typename RxPin, uint16_t TxBufSize, uint16_t RxBufSize>
-        CircularBuffer<TxBufSize> SoftUart<TxPin, RxPin, TxBufSize, RxBufSize>::txbuf_;
-        template<typename TxPin, typename RxPin, uint16_t TxBufSize, uint16_t RxBufSize>
-        CircularBuffer<RxBufSize> SoftUart<TxPin, RxPin, TxBufSize, RxBufSize>::rxbuf_;
-*/
 
 } // Uarts
 } // Mcudrv
