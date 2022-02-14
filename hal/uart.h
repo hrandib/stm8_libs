@@ -259,6 +259,7 @@ public:
         EnableInterrupt(Irqs(IrqRxne | IrqTxComplete));
     }
 
+    NOINLINE
     static bool Putch(const uint8_t c)
     {
         bool st = txbuf_.Write(c);
@@ -278,6 +279,7 @@ public:
     {
         return Puts((const uint8_t*)s);
     }
+    NOINLINE
     template<typename T>
     static uint16_t Puts(T value, uint8_t base = 10)
     {
