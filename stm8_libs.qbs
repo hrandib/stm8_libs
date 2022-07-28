@@ -9,7 +9,9 @@ StaticLibrary {
 
     cpp.includePaths: [
         FileInfo.joinPaths(sourceDirectory, "hal"),
-        FileInfo.joinPaths(sourceDirectory, "common")
+        FileInfo.joinPaths(sourceDirectory, "common"),
+        FileInfo.joinPaths(sourceDirectory, "drivers"),
+        FileInfo.joinPaths(sourceDirectory, "wake"),
     ]
 
     Group {
@@ -30,11 +32,31 @@ StaticLibrary {
         ]
     }
 
+    Group {
+        name: "drivers"
+        prefix: "drivers/"
+        files: [
+            "*.h",
+            "*.cpp"
+        ]
+    }
+
+    Group {
+        name: "wake"
+        prefix: "wake/"
+        files: [
+            "*.h",
+            "*.cpp"
+        ]
+    }
+
     Export {
         Depends { name: "cpp" }
         cpp.includePaths: [
             FileInfo.joinPaths(exportingProduct.sourceDirectory, "hal"),
-            FileInfo.joinPaths(exportingProduct.sourceDirectory, "common")
+            FileInfo.joinPaths(exportingProduct.sourceDirectory, "common"),
+            FileInfo.joinPaths(exportingProduct.sourceDirectory, "drivers"),
+            FileInfo.joinPaths(exportingProduct.sourceDirectory, "wake"),
         ]
     }
 }
