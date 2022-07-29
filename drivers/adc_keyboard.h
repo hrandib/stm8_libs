@@ -27,7 +27,6 @@
 namespace Mcudrv {
 namespace AdcKeys {
 using namespace Adcs;
-//		typedef void (*callback_t)(uint8_t);
 
 template<uint8_t _SampleCount,
          uint32_t Rcom,
@@ -77,11 +76,10 @@ struct Buttons : Adcs::Adc<Mode8Bit>
     template<Channel ch, Adcs::Div clockdiv>
     static void Init(/*callback_t cb*/)
     {
-        //				cb_ = cb;
         Adc::Init<ContMode, clockdiv>();
         SelectChannel(ch);
         WatchdogInit<0, Traits::WatchdogThreshold>();
-        EnableInterrupt<AnalogWatchdog>();
+        EnableInterrupt(AnalogWatchdog);
         Enable();
         StartConversion();
     }
