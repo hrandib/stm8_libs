@@ -15,7 +15,6 @@ SpaceBeforeParens: Never
 AlignEscapedNewlines: Left
 BreakConstructorInitializers: AfterColon
 
-InsertBraces: true
 BreakInheritanceList: BeforeColon
 BreakBeforeBraces: Custom
 BraceWrapping:

@@ -50,6 +50,15 @@ StaticLibrary {
         ]
     }
 
+    Group {
+        name: "resources"
+        prefix: "resources/"
+        files: [
+            "*.h",
+            "*.cpp"
+        ]
+    }
+
     Export {
         Depends { name: "cpp" }
         cpp.includePaths: [
