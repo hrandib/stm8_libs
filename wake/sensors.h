@@ -52,7 +52,7 @@ namespace Mcudrv {
 		enum { deviceMask = DevSensor, features = SenTemperature };
 		static void Init()
 		{
-			Twi::Init();
+            Twi::Init();
 		}
 		static uint16_t Read()
 		{

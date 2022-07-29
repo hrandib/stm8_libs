@@ -52,7 +52,7 @@ namespace Mcudrv
 			C_ClearChannel,
 			C_ToggleChannel
 		};
-		typedef Pd3 R0;
+        typedef Pd3 R0;
 		typedef Pd2 R1;
 		typedef Pc7 R2;
 		typedef Pc6 R3;

@@ -53,7 +53,7 @@ struct Relays : Port
 			}
 		}
 		else {
-			prevValue = value;
+            prevValue = value;
 			Port::Toggle(mask);
 		}
 	}

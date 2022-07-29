@@ -60,7 +60,7 @@ namespace Mcudrv
         147, 151, 155, 159, 163, 167, 171, 175, 179, 183,
         187, 191, 195, 199, 204, 209, 214, 219, 224, 229,
 				234, 239, 244, 249, 255
-	};
+    };
 
 	template<typename Features = LedDriverDefaultFeatures>
 	class LedDriver : WakeData

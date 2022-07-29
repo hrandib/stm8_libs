@@ -57,7 +57,7 @@ namespace Mcudrv {
 
 		typedef Pd3 Isen; //AIN4
 		typedef Pd2 Vsen; //AIN3
-		typedef Pd4 Ilim; //TIM2 CH1
+        typedef Pd4 Ilim; //TIM2 CH1
 
 		typedef Adcs::Adc1 Adc;
 

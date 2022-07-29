@@ -58,7 +58,7 @@ namespace Mcudrv
 			MAXFAN = 0x7F,
 			MINFAN = 0x25
 		};
-		typedef Pa3 PowerSwitch;
+        typedef Pa3 PowerSwitch;
 
 		static const uint8_t Info[];
 

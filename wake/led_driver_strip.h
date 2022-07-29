@@ -59,7 +59,7 @@ namespace Mcudrv
 			Ch2 = Features::TwoChannels
 		};
 		enum InstructionSet {
-			C_GetState = 16,
+            C_GetState = 16,
 			C_GetBright = 16,
 			C_GetFan = 16,
 			C_SetBright = 17,

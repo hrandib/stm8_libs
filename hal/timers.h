@@ -34,7 +34,7 @@ namespace Mcudrv
 			Ch2,
 			Ch3,
 			Ch4,
-			All_Ch
+            All_Ch
 		};
 	}
 	namespace T1
@@ -43,7 +43,7 @@ namespace Mcudrv
 		typedef uint16_t Div;
 //TODO: Implement TIM1_SR2
 		enum Cfg
-		{
+        {
 //			---=== TIM1_CR1 ===---
 			Default = 0,
 			CEN = TIM1_CR1_CEN,			// Counter enable

@@ -44,7 +44,7 @@ struct SpiBase
 		RXONLY = SPI_CR2_RXONLY << 8,
 		SSM = SPI_CR2_SSM << 8,
 		SSI = SPI_CR2_SSI << 8,
-		CfgDefault = MSTR | SSM | SSI
+        CfgDefault = MSTR | SSM | SSI
 	};
 	//Should not be changed when comm. ongoing
 	enum { DIVOFFSET = 3 };

@@ -34,11 +34,33 @@
 
 namespace Mcudrv {
 namespace Twis {
-enum { BaseAddrLM75 = 0x48, BaseAddr24C = 0x50, BaseAddrBH1750 = 0x23, BaseAddrBMP180 = 0x77 };
-enum Mode { Standard, Fast };
-enum AddrType { Addr7bit, Addr10bit };
-enum StopMode { Stop, NoStop };
-enum AckState { NoAck, Ack };
+enum
+{
+    BaseAddrLM75 = 0x48,
+    BaseAddr24C = 0x50,
+    BaseAddrBH1750 = 0x23,
+    BaseAddrBMP180 = 0x77
+};
+enum Mode
+{
+    Standard,
+    Fast
+};
+enum AddrType
+{
+    Addr7bit,
+    Addr10bit
+};
+enum StopMode
+{
+    Stop,
+    NoStop
+};
+enum AckState
+{
+    NoAck,
+    Ack
+};
 
 // Fast mode (400kHz) is only valid if Fcpu = 16 MHz
 template<Mode mode = Standard, typename Scl = Pe1, typename Sda = Pe2>
@@ -211,11 +233,14 @@ public:
     }
 };
 
-template<typename Twi = SoftTwi<> >
+template<typename Twi = SoftTwi<>>
 class Lm75
 {
 public:
-    enum { BaseAddr = 0x48 };
+    enum
+    {
+        BaseAddr = 0x48
+    };
     static int16_t Read(uint8_t devAddr = 0)
     {
         int16_t result;
@@ -230,25 +255,36 @@ public:
     }
 };
 
-template<typename Twi = SoftTwi<> >
+template<typename Twi = SoftTwi<>>
 class Eeprom24c
 {
 public:
-    enum { BaseAddr = 0x50 };
+    enum
+    {
+        BaseAddr = 0x50
+    };
 };
 
-template<typename Twi = SoftTwi<> >
+template<typename Twi = SoftTwi<>>
 class Bh1750
 {
 public:
-    enum { DevAddr = 0x23 };
-    enum { BhPowerDown, BhPowerOn, BhReset = 0x07 };
+    enum
+    {
+        DevAddr = 0x23
+    };
+    enum
+    {
+        BhPowerDown,
+        BhPowerOn,
+        BhReset = 0x07
+    };
     enum Mode
-		{
-			ContHres = 0x10,// 1lx res. typ. 120ms (max 180ms)
-			ContHres2,		// 0.5lx res. typ. 120ms
-			ContLres		// 4lx res. typ. 16ms (max 24ms)
-		};
+    {
+        ContHres = 0x10, // 1lx res. typ. 120ms (max 180ms)
+        ContHres2,       // 0.5lx res. typ. 120ms
+        ContLres         // 4lx res. typ. 16ms (max 24ms)
+    };
     static AckState Init(Mode mode = ContHres)
     {
         return AckState(Twi::Write(DevAddr, BhPowerOn) && Twi::Write(DevAddr, mode));
@@ -273,20 +309,38 @@ class Bmp180
     static_assert(OversamplingFactor < 4, "Oversampling Factor must be in range 0..3");
 private:
     enum
-		{
-			BaseAddr = 0x77,
-			Oss = OversamplingFactor,
-			PMeasureDelay = Oss == 1 ? 8 :
-							Oss == 2 ? 14 :
-							Oss == 3 ? 26 : 5
-		};
-    enum RegMap { RegAC1 = 0xAA, RegTestID = 0xD0, RegControl = 0xF4, RegData = 0xF6, RegXlsb = 0xF8 };
-    enum CalValues { AC1, AC2, AC3, AC4, AC5, AC6, B1, B2, MB, MC, MD };
+    {
+        BaseAddr = 0x77,
+        Oss = OversamplingFactor,
+        PMeasureDelay = Oss == 1 ? 8 : Oss == 2 ? 14 : Oss == 3 ? 26 : 5
+    };
+    enum RegMap
+    {
+        RegAC1 = 0xAA,
+        RegTestID = 0xD0,
+        RegControl = 0xF4,
+        RegData = 0xF6,
+        RegXlsb = 0xF8
+    };
+    enum CalValues
+    {
+        AC1,
+        AC2,
+        AC3,
+        AC4,
+        AC5,
+        AC6,
+        B1,
+        B2,
+        MB,
+        MC,
+        MD
+    };
     enum ControlValue
-		{
-			CmdTemperature = 0x2E,
-			CmdPressure = 0x34 | (Oss << 6),
-		};
+    {
+        CmdTemperature = 0x2E,
+        CmdPressure = 0x34 | (Oss << 6),
+    };
 
     static uint16_t calArr[11];
 
@@ -402,49 +456,83 @@ class Bmp280
 {
 public:
     // ctrl_meas register defs 0xF4
-    enum Toversampling { OsTx1 = 1U << 5, OsTx2 = 2U << 5, OsTx4 = 3U << 5, OsTx8 = 4U << 5, OsTx16 = 5U << 5 };
-    enum Poversampling {
-      OsPx1 = 1U << 2, // Ultra low power
-      OsPx2 = 2U << 2, // Low power
-      OsPx4 = 3U << 2, // Standard
-      OsPx8 = 4U << 2, // High resolution
-//      OsPx16 = 5U << 2, // Ultra high resolution
+    enum Toversampling
+    {
+        OsTx1 = 1U << 5,
+        OsTx2 = 2U << 5,
+        OsTx4 = 3U << 5,
+        OsTx8 = 4U << 5,
+        OsTx16 = 5U << 5
     };
-    enum Mode { ModeSleep, ModeForced, ModeNormal = 3 };
+    enum Poversampling
+    {
+        OsPx1 = 1U << 2, // Ultra low power
+        OsPx2 = 2U << 2, // Low power
+        OsPx4 = 3U << 2, // Standard
+        OsPx8 = 4U << 2, // High resolution
+                         //      OsPx16 = 5U << 2, // Ultra high resolution
+    };
+    enum Mode
+    {
+        ModeSleep,
+        ModeForced,
+        ModeNormal = 3
+    };
     // config register defs 0xF5
-    enum StandbyTime {
-      Stb_500us = 0U << 5,
-      Stb_62ms = 1U << 5,
-      Stb_125ms = 2U << 5,
-      Stb_250ms = 3U << 5,
-      Stb_500ms = 4U << 5,
-      Stb_1s = 5U << 5,
-      Stb_2s = 6U << 5,
-      Stb_4s = 7U << 5
+    enum StandbyTime
+    {
+        Stb_500us = 0U << 5,
+        Stb_62ms = 1U << 5,
+        Stb_125ms = 2U << 5,
+        Stb_250ms = 3U << 5,
+        Stb_500ms = 4U << 5,
+        Stb_1s = 5U << 5,
+        Stb_2s = 6U << 5,
+        Stb_4s = 7U << 5
     };
-    enum IIR {
-      IIR_Off = 0U << 2,
-      IIR_x1 = 1U << 2,
-      IIR_x2 = 2U << 2,
-      IIR_x4 = 3U << 2,
-      IIR_x8 = 4U << 2,
-      IIR_x16 = 5U << 2
+    enum IIR
+    {
+        IIR_Off = 0U << 2,
+        IIR_x1 = 1U << 2,
+        IIR_x2 = 2U << 2,
+        IIR_x4 = 3U << 2,
+        IIR_x8 = 4U << 2,
+        IIR_x16 = 5U << 2
     };
 private:
-    enum { BaseAddr = 0x76, Oss = OsPx8, MeasureDelay = Oss == OsPx1 ? 7 : Oss == OsPx2 ? 9 : Oss == OsPx4 ? 14 : 23 };
+    enum
+    {
+        BaseAddr = 0x76,
+        Oss = OsPx8,
+        MeasureDelay = Oss == OsPx1 ? 7 : Oss == OsPx2 ? 9 : Oss == OsPx4 ? 14 : 23
+    };
     enum RegMap
     {
-      RegID = 0xD0,
-      RegControlMeas = 0xF4,
-      RegConfig = 0xF5,
-      RegPdata = 0xF7,
-      RegPxlsb = 0xF9,
-      RegTdata = 0xFA,
-      RegTxlsb = 0xFC,
-      RegCalBegin = 0x88,
-      RegDataBegin = RegPdata
+        RegID = 0xD0,
+        RegControlMeas = 0xF4,
+        RegConfig = 0xF5,
+        RegPdata = 0xF7,
+        RegPxlsb = 0xF9,
+        RegTdata = 0xFA,
+        RegTxlsb = 0xFC,
+        RegCalBegin = 0x88,
+        RegDataBegin = RegPdata
     };
-    enum CalIndexes { T1, T2, T3, P1, P2, P3, P4, P5, P6, P7, P8, P9 };
+    enum CalIndexes
+    {
+        T1,
+        T2,
+        T3,
+        P1,
+        P2,
+        P3,
+        P4,
+        P5,
+        P6,
+        P7,
+        P8,
+        P9
+    };
 
     static uint16_t calArr[12];
 
@@ -598,13 +686,18 @@ template<typename Twi>
 class Hdc1080
 {
 private:
-    enum { BaseAddr = 0x40, MeasureDelay = 20 };
-    enum Mode {
-      Tres14bit = 0U << 10,
-      Tres11bit = 1U << 10,
-      Hres14bit = 0U << 8,
-      Hres11bit = 1U << 8,
-      Hres8bit = 2U << 8
+    enum
+    {
+        BaseAddr = 0x40,
+        MeasureDelay = 20
+    };
+    enum Mode
+    {
+        Tres14bit = 0U << 10,
+        Tres11bit = 1U << 10,
+        Hres14bit = 0U << 8,
+        Hres11bit = 1U << 8,
+        Hres8bit = 2U << 8
     };
 public:
     struct HT

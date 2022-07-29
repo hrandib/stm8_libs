@@ -34,7 +34,13 @@ template<typename OwPin>
 class OneWire
 {
 private:
-    enum InstructionSet { CmdSearchRom = 0xF0, CmdReadRom = 0x33, CmdMatchRom = 0x55, CmdSkipRom = 0xCC };
+    enum InstructionSet
+    {
+        CmdSearchRom = 0xF0,
+        CmdReadRom = 0x33,
+        CmdMatchRom = 0x55,
+        CmdSkipRom = 0xCC
+    };
 
 #pragma optimize = speed
     static void WriteBit(bool val)
@@ -275,14 +281,20 @@ private:
     typedef typename Ow::Descriptor Descriptor;
     static Descriptor romArr[devMaxNumber];
     static uint8_t devNumber;
-    enum InstructionSet { CmdConvert = 0x44, CmdRead = 0xBE, CmdWriteScratchpad = 0x4E };
+    enum InstructionSet
+    {
+        CmdConvert = 0x44,
+        CmdRead = 0xBE,
+        CmdWriteScratchpad = 0x4E
+    };
 public:
     // Affects conversion time
-    enum Resolution {
-        RES_9BIT, //100ms
-        RES_10BIT, //200ms
-        RES_11BIT, //400ms
-        RES_12BIT  //750ms
+    enum Resolution
+    {
+        RES_9BIT,  // 100ms
+        RES_10BIT, // 200ms
+        RES_11BIT, // 400ms
+        RES_12BIT  // 750ms
     };
     static uint8_t Init()
     {

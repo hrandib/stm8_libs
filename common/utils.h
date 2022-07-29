@@ -23,7 +23,6 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include "gpio.h"
 #include "type_traits.h"
 
 namespace utils {
@@ -33,10 +32,11 @@ class RangeLinear
 {
     value_type value_;
 public:
-    enum {
+    enum
+    {
         MAXVAL = MAX,
         MINVAL = MIN,
-        STEPVAL = STEP,
+        STEPVAL = STEP
     };
     RangeLinear(value_type init = MIN) : value_(init)
     { }
@@ -99,7 +99,8 @@ class ButtonsLongPress
     typedef typename stdx::SelectSizeForLength<(TLONGPRESS_MS / TPOLL_MS) + 1>::type Counter_t;
     Callback_t callbacks_[BUTTONS_COUNT];
     Counter_t pollCounters_[BUTTONS_COUNT];
-    enum {
+    enum
+    {
         DEBOUNCE_DELAY_MS = 100,
         COUNTER_MAXVAL = stdx::TypeMaxvalue<Counter_t>::value,
     };

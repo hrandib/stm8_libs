@@ -24,10 +24,15 @@
 
 // platform specific delay loop implementation
 #include "clock.h"
-#include "stdint.h"
+#include <stdint.h>
 
 namespace Mcudrv {
-enum { PlatformCyslesPerDelayLoop32 = 42, PlatformCyslesPerDelayLoop16 = 6, PlatformCyslesPerDelayLoop8 = 5 };
+enum
+{
+    PlatformCyslesPerDelayLoop32 = 42,
+    PlatformCyslesPerDelayLoop16 = 6,
+    PlatformCyslesPerDelayLoop8 = 5
+};
 
 //	namespace Ndelay
 //	{

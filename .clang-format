@@ -1,6 +1,6 @@
 BasedOnStyle: Mozilla
 
-Standard: Cpp03
+Standard: Cpp11
 IndentWidth: 4
 AccessModifierOffset: -4
 ColumnLimit: 120
@@ -10,17 +10,19 @@ AlwaysBreakAfterDefinitionReturnType: None
 AlwaysBreakAfterReturnType: None
 SpaceInEmptyBlock: true
 AllowShortFunctionsOnASingleLine: false
+AllowShortEnumsOnASingleLine: false
 SpaceBeforeParens: Never
 AlignEscapedNewlines: Left
 BreakConstructorInitializers: AfterColon
 
+InsertBraces: true
 BreakInheritanceList: BeforeColon
 BreakBeforeBraces: Custom
 BraceWrapping:
   AfterCaseLabel:  false
   AfterClass:      true
   AfterControlStatement: Never
-  AfterEnum:       false
+  AfterEnum:       true
   AfterFunction:   true
   AfterNamespace:  false
   AfterStruct:     true
