@@ -555,7 +555,11 @@ public:
                 case C_SAVESETTINGS:
                     if(!pdata.n) {
                         pdata.buf[0] = ERR_NO;
-                        moduleList::SaveState();
+                        Unlock<Eeprom>();
+                        if(IsUnlocked<Eeprom>()) {
+                            moduleList::SaveState();
+                            Lock<Eeprom>();
+                        }
                     }
                     else
                         pdata.buf[0] = ERR_PA;
@@ -738,8 +742,8 @@ public:
                     state = WAIT_FEND; // adress not matched, wait for new packet
                     break;
                 }
-                else
-                    pdata.addr = 0; // MSB = 0, skip address recv, next step - command recv
+                // packet is a broadcast and doesn't contain address field
+                pdata.addr = 0; // jump directly to the command recv
                 state = CMD;
             case CMD: // wait for the command
                 // command MSB must always equal zero
