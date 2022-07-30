@@ -50,13 +50,14 @@ private:
 
 #pragma data_alignment = 4
 #pragma location = ".eeprom.noinit"
-    static EepromBuf_t eebuf[16]; // @ ".eeprom.noinit";
+    static EepromBuf_t eebuf[16];
 #pragma data_alignment = 4
 #pragma location = ".eeprom.noinit"
-    static uint16_t hvalue; // @ ".eeprom.noinit";
+    static uint16_t hvalue;
     volatile static bool tenMinPassed;
 
-    _Pragma(VECTOR_ID(TIM4_OVR_UIF_vector)) __interrupt static void UpdIRQ() // Fcpu/256/128 ~= 61 Hz for 2 MHz HSI
+    // Fcpu/256/128 ~= 61 Hz for 2 MHz HSI
+    _Pragma(VECTOR_ID(TIM4_OVR_UIF_vector)) __interrupt static void UpdIRQ()
     {
         static uint16_t tempCounter;
         T4::Timer4::ClearIntFlag();
@@ -155,31 +156,31 @@ enum Mode
 
 enum State
 {
-    WAIT_FEND = 0, //ожидание приема FEND
-    SEND_IDLE = 0, //состояние бездействия
-    ADDR,          //ожидание приема адреса						//передача адреса
-    CMD,           //ожидание приема команды						//передача команды
-    NBT, //ожидание приема количества байт в пакете	//передача количества байт в пакете
-    DATA, //прием данных								//передача данных
-    CRC,  //ожидание окончания приема CRC				//передача CRC
-    CARR  //ожидание несущей							//окончание передачи пакета
+    WAIT_FEND = 0, // Wait for the FEND byte
+    SEND_IDLE = 0, // Idle state
+    ADDR,          // Waiting for the node address / send address
+    CMD,           // Waiting for the commamd / send command
+    NBT,           // Wait for the packet length / send packet length
+    DATA,          // Data receiving / sending
+    CRC,           // Wait for CRC / send CRC
+    CARR           // Wait for the carrier / packet sending finish
 };
 
 enum Cmd
 {
-    C_NOP,  //нет операции
-    C_ERR,  //ошибка приема пакета
-    C_ECHO, //передать эхо
-    C_GETINFO,
-    C_SETNODEADDRESS,
-    C_GETGROUPADDRESS,
-    C_SETGROUPADDRESS = C_GETGROUPADDRESS,
-    C_GETOPTIME,
-    C_OFF,
-    C_ON,
-    C_ToggleOnOff,
-    C_SAVESETTINGS,
-    C_REBOOT,
+    C_NOP,                                 // No operation
+    C_ERR,                                 // Packet recv error
+    C_ECHO,                                // Echo response
+    C_GETINFO,                             // Get device info
+    C_SETNODEADDRESS,                      // Change node address
+    C_GETGROUPADDRESS,                     // Get node group address (multicast)
+    C_SETGROUPADDRESS = C_GETGROUPADDRESS, // Change node group address (multicast)
+    C_GETOPTIME,                           // Get node operation time (non-volatile, whole period)
+    C_OFF,                                 // Common Off command, can be handled by multiple modules
+    C_ON,                                  // Common On command, can be handled by multiple modules
+    C_ToggleOnOff,                         // Common Toggle On/Off command, can be handled by multiple modules
+    C_SAVESETTINGS,                        // Save current state to the non-volatile memory
+    C_REBOOT,                              // Reboot the node, useful for the bootloader interaction
 
     C_BASE_END
 };
@@ -207,13 +208,8 @@ enum DeviceType
     DevGenericIO = 0x08,
     DevSensor = 0x10,
     DevPowerSupply = 0x20,
-    //		Reserved = 0x40,
+    DevReserved = 0x40,
     DevCustom = 0x80
-};
-
-enum CustomDeviceID
-{
-    CustomID_Themostat = 0x01
 };
 
 enum AddrType
@@ -291,7 +287,8 @@ struct ModuleList
                : deviceMask & Module6::deviceMask ? Module6::GetDeviceFeatures(deviceMask)
                                                   : 0;
     }
-    static void SaveState() // module should be save only if settings changed
+    // The module should save its state only if it changed
+    static void SaveState()
     {
         Module1::SaveState();
         Module2::SaveState();
@@ -351,7 +348,8 @@ public:
 protected:
     static volatile Packet pdata;
     static volatile uint8_t cmd;
-    static volatile uint8_t processedMask; // used to check if command processed in modules
+    // Each modules will set the respective flag if it NOT processed active command
+    static volatile uint8_t processedMask;
 };
 
 template<typename moduleList = ModuleList<NullModule>,
@@ -493,7 +491,7 @@ public:
                                 pdata.buf[0] = ERR_NI;
                             }
                         }
-                        // else if(pdata.buf[0] == 7) //custom device
+                        // TODO: Custom device extension support if(pdata.buf[0] == 7)
                     }
                     else {
                         pdata.buf[0] = ERR_PA;
@@ -633,54 +631,54 @@ public:
         else { // if(Uart::IsEvent(Uarts::TxEmpty))
             uint8_t data_byte;
             if(prev_byte == FEND) {
-                data_byte = TFEND; //передача TFEND вместо FEND
+                data_byte = TFEND; // send TFEND instead FEND
                 prev_byte = data_byte;
                 Uart::Regs()->DR = data_byte;
                 return;
             }
             if(prev_byte == FESC) {
-                data_byte = TFESC; //передача TFESC вместо FESC
+                data_byte = TFESC; // send TFESC instead FESC
                 prev_byte = data_byte;
                 Uart::Regs()->DR = data_byte;
                 return;
             }
             switch(state) {
-                case ADDR: //-----> передача адреса
+                case ADDR: // send address
                     state = CMD;
                     if(pdata.addr) {
-                        data_byte = nodeAddr_nv | 0x80; //то он передается (бит 7 равен единице)
+                        // MSB is always set for the address byte, it lets to skip this field for broadcasts
+                        data_byte = nodeAddr_nv | 0x80;
                         break;
                     }
-                    //иначе сразу передаем команду
                 case CMD:
                     data_byte = pdata.cmd & 0x7F;
                     state = NBT;
                     break;
-                case NBT: //-----> передача количества байт
+                case NBT: // send packet byte length
                     data_byte = pdata.n;
                     state = DATA;
-                    ptr = 0; //обнуление указателя данных для передачи
+                    ptr = 0; // reset data pointer
                     break;
-                case DATA: { //-----> передача данных
+                case DATA: { // send data
                     uint8_t ptr_ = ptr;
                     if(ptr_ < pdata.n) {
                         data_byte = pdata.buf[ptr++];
                     }
                     else {
-                        data_byte = crc.GetResult(); //передача CRC
+                        data_byte = crc.GetResult(); // send CRC
                         state = CRC;
                     }
                     break;
                 }
                 default:
                     Uart::DisableInterrupt(IrqTxEmpty);
-                    state = SEND_IDLE; //передача пакета завершена
+                    state = SEND_IDLE; // packet sending finished
                     return;
             }
-            crc(data_byte);        //обновление CRC
-            prev_byte = data_byte; //сохранение пре-байта
-            if(data_byte == FEND)  // || data_byte == FESC)
-                data_byte = FESC;  //передача FESC, если нужен стаффинг
+            crc(data_byte);        // calculate CRC
+            prev_byte = data_byte; // store pre-byte
+            if(data_byte == FEND)
+                data_byte = FESC; // send FESC if byte stuffing required
             Uart::Regs()->DR = data_byte;
         }
     }
@@ -696,8 +694,8 @@ public:
         bool error = Uart::IsEvent(static_cast<Events>(EvParityErr | EvFrameErr | EvNoiseErr | EvOverrunErr));
         uint8_t data_byte = Uart::Regs()->DR;
         if(error) {
-            state = WAIT_FEND; //ожидание нового пакета
-            cmd = C_ERR;       //рапортуем об ошибке
+            state = WAIT_FEND; // wait for new packet
+            cmd = C_ERR;       // send error status
             return;
         }
         if(data_byte == FEND) {
@@ -710,74 +708,76 @@ public:
         if(state == WAIT_FEND) {
             return;
         }
-        char Pre = prev_byte;  //сохранение старого пре-байта
-        prev_byte = data_byte; //обновление пре-байта
+        char Pre = prev_byte;
+        prev_byte = data_byte;
         if(Pre == FESC) {
-            if(data_byte == TFESC)      //а байт данных равен TFESC,
-                data_byte = FESC;       //то заменить его на FESC
-            else if(data_byte == TFEND) //если байт данных равен TFEND,
-                data_byte = FEND;       //то заменить его на FEND
+            if(data_byte == TFESC) // byte de-stuffing routine
+                data_byte = FESC;
+            else if(data_byte == TFEND)
+                data_byte = FEND;
             else {
-                state = WAIT_FEND; //для всех других значений байта данных,
-                cmd = C_ERR;       //следующего за FESC, ошибка
+                state = WAIT_FEND; // send error for the unexpected data
+                cmd = C_ERR;
                 return;
             }
         }
         else {
-            if(data_byte == FESC) //если байт данных равен FESC, он просто
-                return;           //запоминается в пре-байте
+            if(data_byte == FESC)
+                return;
         }
         switch(state) {
-            case ADDR: //-----> ожидание приема адреса
+            case ADDR: // wait for address recv
                 if(data_byte & 0x80) {
-                    crc(data_byte);    //то обновление CRC и
-                    data_byte &= 0x7F; //обнуляем бит 7, получаем истинный адрес
+                    crc(data_byte);
+                    data_byte &= 0x7F; // normalize address byte
                     if(data_byte == 0 || data_byte == nodeAddr_nv || data_byte == groupAddr_nv) {
                         pdata.addr = data_byte;
-                        state = CMD; //переходим к приему команды
+                        state = CMD; // next step - command recv
                         break;
                     }
-                    state = WAIT_FEND; //адрес не совпал, ожидание нового пакета
+                    state = WAIT_FEND; // adress not matched, wait for new packet
                     break;
                 }
                 else
-                    pdata.addr = 0; //если бит 7 данных равен нулю, то
-                state = CMD;        //сразу переходим к приему команды
-            case CMD:               //-----> ожидание приема команды
+                    pdata.addr = 0; // MSB = 0, skip address recv, next step - command recv
+                state = CMD;
+            case CMD: // wait for the command
+                // command MSB must always equal zero
                 if(data_byte & 0x80) {
-                    state = WAIT_FEND; //если бит 7 не равен нулю,
-                    cmd = C_ERR;       //то ошибка
+                    state = WAIT_FEND;
+                    cmd = C_ERR;
                     break;
                 }
-                pdata.cmd = data_byte; //сохранение команды
-                crc(data_byte);        //обновление CRC
-                state = NBT;           //переходим к приему количества байт
+                pdata.cmd = data_byte; // store command
+                crc(data_byte);
+                state = NBT; // next step - recv packet length
                 break;
             case NBT:
                 if(data_byte > WAKEDATABUFSIZE) {
                     state = WAIT_FEND;
-                    cmd = C_ERR; //то ошибка
+                    cmd = C_ERR;
                     break;
                 }
                 pdata.n = data_byte;
-                crc(data_byte); //обновление CRC
-                ptr = 0;        //обнуляем указатель данных
-                state = DATA;   //переходим к приему данных
+                crc(data_byte);
+                ptr = 0;      // data pointer reset
+                state = DATA; // wait for payload
                 break;
             case DATA:
                 uint8_t ptr_ = ptr;
                 if(ptr_ < pdata.n) {
-                    pdata.buf[ptr++] = data_byte; //то сохранение байта данных,
-                    crc(data_byte);               //обновление CRC
+                    pdata.buf[ptr++] = data_byte;
+                    crc(data_byte);
                     break;
                 }
+                // Check CRC
                 if(data_byte != crc.GetResult()) {
-                    state = WAIT_FEND; //если CRC не совпадает,
-                    cmd = C_ERR;       //то ошибка
+                    state = WAIT_FEND;
+                    cmd = C_ERR;
                     break;
                 }
-                state = WAIT_FEND; //прием пакета завершен,
-                cmd = pdata.cmd;   //загрузка команды на выполнение
+                state = WAIT_FEND;
+                cmd = pdata.cmd; // Process received command
                 break;
         }
     }

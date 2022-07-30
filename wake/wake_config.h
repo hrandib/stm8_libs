@@ -36,4 +36,9 @@
 #define UART_SINGLEWIRE_MODE 0
 #endif
 
+enum CustomDeviceID
+{
+    CustomID_Themostat = 0x01
+};
+
 #endif // WAKE_CONFIG_H
