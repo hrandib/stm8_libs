@@ -269,5 +269,62 @@ struct Pinlist<First, SequenceOf<Seq> > : GpioBase
     }
 };
 
+// Combines up to 4 linear pin ranges to the single virtual port,
+// e.g (Pc3, Pc4, Pc5, Pd0, Pd1, Pd2) sequence could be defined as PinSequence<Pc3, 3, Pd0, 3>
+template<typename T1,
+         uint8_t Seq1,
+         typename T2 = Nullpin,
+         uint8_t Seq2 = 0,
+         typename T3 = Nullpin,
+         uint8_t Seq3 = 0,
+         typename T4 = Nullpin,
+         uint8_t Seq4 = 0>
+class PinSequence : GpioBase
+{
+private:
+    typedef Pinlist<T1, SequenceOf<Seq1> > Pinlist1;
+    typedef Pinlist<T2, SequenceOf<Seq2> > Pinlist2;
+    typedef Pinlist<T3, SequenceOf<Seq3> > Pinlist3;
+    typedef Pinlist<T4, SequenceOf<Seq4> > Pinlist4;
+public:
+#pragma inline = forced
+    static uint16_t ReadODR()
+    {
+        return Pinlist1::ReadODR() | Pinlist2::ReadODR() << Seq1 | Pinlist3::ReadODR() << Seq2 |
+               Pinlist4::ReadODR() << Seq3;
+    }
+#pragma inline = forced
+    static uint16_t Read()
+    {
+        return Pinlist1::Read() | Pinlist2::Read() << Seq1 | Pinlist3::Read() << Seq2 | Pinlist4::Read() << Seq3;
+    }
+#pragma inline = forced
+    static void Write(uint16_t value)
+    {
+        Pinlist1::Write(value);
+        Pinlist2::Write(value >> Seq1);
+        Pinlist3::Write(value >> Seq2);
+        Pinlist4::Write(value >> Seq3);
+    }
+#pragma inline = forced
+    template<uint8_t mask, Cfg cfg>
+    static void SetConfig()
+    {
+        Pinlist1::template SetConfig<static_cast<uint8_t>(mask), cfg>();
+        Pinlist2::template SetConfig<static_cast<uint8_t>(mask >> Seq1), cfg>();
+        Pinlist3::template SetConfig<static_cast<uint8_t>(mask >> Seq2), cfg>();
+        Pinlist4::template SetConfig<static_cast<uint8_t>(mask >> Seq3), cfg>();
+    }
+#pragma inline = forced
+    template<Cfg cfg>
+    static void SetConfig()
+    {
+        Pinlist1::template SetConfig<cfg>();
+        Pinlist2::template SetConfig<cfg>();
+        Pinlist3::template SetConfig<cfg>();
+        Pinlist4::template SetConfig<cfg>();
+    }
+};
+
 } // Mcudrv
 #endif // PINLIST_H

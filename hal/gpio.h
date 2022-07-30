@@ -264,6 +264,9 @@ struct GpioNull : GpioBase
     static void ClearAndSet()
     { }
 #pragma inline = forced
+    static void ClearAndSet(uint8_t clearmask, uint8_t setmask)
+    { }
+#pragma inline = forced
     static uint8_t Read()
     {
         return 0;
