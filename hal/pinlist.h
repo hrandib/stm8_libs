@@ -235,37 +235,52 @@ struct Pinlist<First, SequenceOf<Seq> > : GpioBase
     typedef typename First::Port Port;
     enum
     {
-        offset = First::position,
-        mask = stdx::NumberToMask<Seq>::value << offset,
-        size = Seq
+        OFFSET = First::position,
+        MASK = stdx::NumberToMask<Seq>::value << OFFSET,
+        SIZE = Seq
     };
 #pragma inline = forced
     static uint16_t ReadODR()
     {
-        return (Port::ReadODR() & mask) >> offset;
+        return (Port::ReadODR() & MASK) >> OFFSET;
     }
 #pragma inline = forced
     static uint16_t Read()
     {
-        return (Port::Read() & mask) >> offset;
+        return (Port::Read() & MASK) >> OFFSET;
     }
 #pragma inline = forced
     static void Write(uint16_t value)
     {
-        value = (value << offset) & mask;
-        Port::ClearAndSet(~value & mask, value);
+        value = (value << OFFSET) & MASK;
+        Port::ClearAndSet(~value & MASK, value);
     }
 #pragma inline = forced
-    template<uint8_t mask_, Cfg cfg>
+    template<uint8_t mask, Cfg cfg>
     static void SetConfig()
     {
-        Port::template SetConfig<(uint8_t)(mask_ << offset), cfg>();
+        Port::template SetConfig<(uint8_t)(mask << OFFSET), cfg>();
     }
 #pragma inline = forced
     template<Cfg cfg>
     static void SetConfig()
     {
-        Port::template SetConfig<mask, cfg>();
+        Port::template SetConfig<MASK, cfg>();
+    }
+#pragma inline = forced
+    static void Toggle(uint8_t mask)
+    {
+        Port::Toggle(mask << OFFSET);
+    }
+#pragma inline = forced
+    static void Set(uint8_t mask)
+    {
+        Port::Set(mask << OFFSET);
+    }
+#pragma inline = forced
+    static void Clear(uint8_t mask)
+    {
+        Port::Clear(mask << OFFSET);
     }
 };
 
@@ -305,6 +320,30 @@ public:
         Pinlist2::Write(value >> Seq1);
         Pinlist3::Write(value >> Seq2);
         Pinlist4::Write(value >> Seq3);
+    }
+#pragma inline = forced
+    static void Clear(uint16_t value)
+    {
+        Pinlist1::Clear(value);
+        Pinlist2::Clear(value >> Seq1);
+        Pinlist3::Clear(value >> Seq2);
+        Pinlist4::Clear(value >> Seq3);
+    }
+#pragma inline = forced
+    static void Set(uint16_t value)
+    {
+        Pinlist1::Set(value);
+        Pinlist2::Set(value >> Seq1);
+        Pinlist3::Set(value >> Seq2);
+        Pinlist4::Set(value >> Seq3);
+    }
+#pragma inline = forced
+    static void Toggle(uint16_t value)
+    {
+        Pinlist1::Toggle(value);
+        Pinlist2::Toggle(value >> Seq1);
+        Pinlist3::Toggle(value >> Seq2);
+        Pinlist4::Toggle(value >> Seq3);
     }
 #pragma inline = forced
     template<uint8_t mask, Cfg cfg>
