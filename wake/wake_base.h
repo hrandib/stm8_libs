@@ -25,6 +25,7 @@
 #pragma once
 
 #include "proto_version.h"
+#include "wake_config.h"
 
 #include "crc.h"
 #include "flash.h"
@@ -32,14 +33,6 @@
 #include "itc.h"
 #include "timers.h"
 #include "uart.h"
-
-#ifndef WAKEDATABUFSIZE
-#define WAKEDATABUFSIZE 64
-#endif
-
-#ifndef BOOTLOADER_EXIST
-#define BOOTLOADER_EXIST 1
-#endif
 
 namespace Mcudrv {
 namespace Wk {
@@ -143,86 +136,100 @@ volatile bool OpTime<TCallback>::tenMinPassed;
 //			---=== Wake main definitions ===---
 
 enum
-		{
-                        DefaultADDR = 127,
-			DefaultGroupADDR = 95,
-			REBOOT_KEY = 0xCB47ED91U,		// Host should use big endian format
-			CRC_INIT = 0xDE,
-			FEND = 0xC0,    //Frame END
-			FESC = 0xDB,    //Frame ESCape
-			TFEND = 0xDC,    //Transposed Frame END
-			TFESC = 0xDD    //Transposed Frame ESCape
-		};
+{
+    DefaultADDR = 127,
+    DefaultGroupADDR = 95,
+    REBOOT_KEY = 0xCB47ED91U, // Host should use big endian format
+    CRC_INIT = 0xDE,
+    FEND = 0xC0,  // Frame END
+    FESC = 0xDB,  // Frame ESCape
+    TFEND = 0xDC, // Transposed Frame END
+    TFESC = 0xDD  // Transposed Frame ESCape
+};
 
-enum Mode { Master, Slave };
+enum Mode
+{
+    Master,
+    Slave
+};
 
 enum State
-		{
-			WAIT_FEND = 0,     //ожидание приема FEND
-			SEND_IDLE = 0,											//состояние бездействия
-			ADDR,     //ожидание приема адреса						//передача адреса
-			CMD,      //ожидание приема команды						//передача команды
-			NBT,      //ожидание приема количества байт в пакете	//передача количества байт в пакете
-			DATA,     //прием данных								//передача данных
-			CRC,      //ожидание окончания приема CRC				//передача CRC
-			CARR	   //ожидание несущей							//окончание передачи пакета
-		};
+{
+    WAIT_FEND = 0, //ожидание приема FEND
+    SEND_IDLE = 0, //состояние бездействия
+    ADDR,          //ожидание приема адреса						//передача адреса
+    CMD,           //ожидание приема команды						//передача команды
+    NBT, //ожидание приема количества байт в пакете	//передача количества байт в пакете
+    DATA, //прием данных								//передача данных
+    CRC,  //ожидание окончания приема CRC				//передача CRC
+    CARR  //ожидание несущей							//окончание передачи пакета
+};
 
 enum Cmd
-		{
-			C_NOP,    //нет операции
-			C_ERR,    //ошибка приема пакета
-			C_ECHO,    //передать эхо
-			C_GETINFO,
-			C_SETNODEADDRESS,
-			C_GETGROUPADDRESS,
-			C_SETGROUPADDRESS = C_GETGROUPADDRESS,
-			C_GETOPTIME,
-			C_OFF,
-			C_ON,
-			C_ToggleOnOff,
-			C_SAVESETTINGS,
-#if BOOTLOADER_EXIST
-			C_REBOOT,
-#endif
-			C_BASE_END
-		};
+{
+    C_NOP,  //нет операции
+    C_ERR,  //ошибка приема пакета
+    C_ECHO, //передать эхо
+    C_GETINFO,
+    C_SETNODEADDRESS,
+    C_GETGROUPADDRESS,
+    C_SETGROUPADDRESS = C_GETGROUPADDRESS,
+    C_GETOPTIME,
+    C_OFF,
+    C_ON,
+    C_ToggleOnOff,
+    C_SAVESETTINGS,
+    C_REBOOT,
+
+    C_BASE_END
+};
 
 enum Err
-		{
-			ERR_NO,	//no error
-			ERR_TX,	//Rx/Tx error
-			ERR_BU,	//device busy error
-			ERR_RE,	//device not ready error
-			ERR_PA,	//parameters value error
-			ERR_NI,	//Command not impl
-			ERR_NR,	//no replay
-			ERR_NC,	//no carrier
-			ERR_ADDRFMT,	//new address is wrong
-			ERR_EEPROMUNLOCK //EEPROM wasn't unlocked
-		};
+{
+    ERR_NO,          // no error
+    ERR_TX,          // Rx/Tx error
+    ERR_BU,          // device busy error
+    ERR_RE,          // device not ready error
+    ERR_PA,          // parameters value error
+    ERR_NI,          // Command not impl
+    ERR_NR,          // no replay
+    ERR_NC,          // no carrier
+    ERR_ADDRFMT,     // new address is wrong
+    ERR_EEPROMUNLOCK // EEPROM wasn't unlocked
+};
 
 enum DeviceType
-		{
-			DevNull,
-			DevLedDriver = 0x01,
-			DevSwitch = 0x02,
-			DevRgbDriver = 0x04,
-			DevGenericIO = 0x08,
-			DevSensor = 0x10,
-			DevPowerSupply = 0x20,
-//		Reserved = 0x40,
-			DevCustom = 0x80
-		};
+{
+    DevNull,
+    DevLedDriver = 0x01,
+    DevSwitch = 0x02,
+    DevRgbDriver = 0x04,
+    DevGenericIO = 0x08,
+    DevSensor = 0x10,
+    DevPowerSupply = 0x20,
+    //		Reserved = 0x40,
+    DevCustom = 0x80
+};
 
-enum CustomDeviceID { CustomID_Themostat = 0x01 };
+enum CustomDeviceID
+{
+    CustomID_Themostat = 0x01
+};
 
-enum AddrType { addrGroup, addrNode };
+enum AddrType
+{
+    addrGroup,
+    addrNode
+};
 
-// Every module should implement the same interface
+// Each module must implement this interface
 struct NullModule
 {
-    enum { deviceMask = DevNull, features = 0 };
+    enum
+    {
+        deviceMask = DevNull,
+        features = 0
+    };
     static void Init()
     { }
     static void Process()
@@ -251,8 +258,11 @@ template<typename Module1,
          typename Module6 = NullModule>
 struct ModuleList
 {
-    enum { deviceMask = (uint8_t)Module1::deviceMask | Module2::deviceMask | Module3::deviceMask |
-                                        Module4::deviceMask | Module5::deviceMask | Module6::deviceMask };
+    enum
+    {
+        deviceMask = (uint8_t)Module1::deviceMask | Module2::deviceMask | Module3::deviceMask | Module4::deviceMask |
+                     Module5::deviceMask | Module6::deviceMask
+    };
     static void Init()
     {
         Module1::Init();
@@ -341,11 +351,8 @@ public:
 protected:
     static volatile Packet pdata;
     static volatile uint8_t cmd;
-    static uint8_t processedMask; // used to check if command processed in modules
+    static volatile uint8_t processedMask; // used to check if command processed in modules
 };
-volatile WakeData::Packet WakeData::pdata;
-volatile uint8_t WakeData::cmd;
-uint8_t WakeData::processedMask;
 
 template<typename moduleList = ModuleList<NullModule>,
          Uarts::BaudRate baud = 9600UL,
@@ -357,9 +364,9 @@ private:
     typedef Uarts::Uart Uart;
     typedef OpTime<moduleList> OpTime;
 #pragma location = ".eeprom.noinit"
-    static volatile uint8_t nodeAddr_nv; // @ ".eeprom.data";
+    static volatile uint8_t nodeAddr_nv;
 #pragma location = ".eeprom.noinit"
-    static volatile uint8_t groupAddr_nv; // @ ".eeprom.data";
+    static volatile uint8_t groupAddr_nv;
     static volatile uint8_t prev_byte;
     static volatile State state; // Current tranfer mode
     static volatile uint8_t ptr; // data pointer in Rx buffer
@@ -418,12 +425,15 @@ private:
     }
 public:
 #pragma inline = forced
+
     static void Init()
     {
         using namespace Uarts;
-        // Single Wire mode is default for UART1
-        enum { SingleWireMode = (Uart::BaseAddr == UART1_BaseAddress ? Uarts::SingleWireMode : 0) };
-        Uart::template Init<Cfg(Uarts::DefaultCfg | (Cfg)SingleWireMode), baud>();
+        enum
+        {
+            SingleWireMode = (Uart::BaseAddr == UART1_BaseAddress && UART_SINGLEWIRE_MODE ? Uarts::SingleWireMode : 0)
+        };
+        Uart::template Init<Cfg(Uarts::DefaultCfg | Cfg(SingleWireMode)), baud>();
         DriverEnable::template SetConfig<GpioBase::Out_PushPull_fast>();
         DriverEnable::Clear();
         // validate node address saved in eeprom
@@ -439,14 +449,18 @@ public:
         Wdg::Iwdg::Enable(Wdg::P_1s);
         Uart::EnableInterrupt(IrqDefault);
     }
-#pragma inline = forced
     static void Process()
     {
+        using namespace Mem;
         Wdg::Iwdg::Refresh();
         if(OpTime::GetTenMinitesFlag() && !IsActive()) {
             OpTime::ClearTenMinutesFlag();
-            OpTime::CountInc();      // Refresh optime counter every 10 mins
-            moduleList::SaveState(); // Save to EEPROM
+            OpTime::CountInc(); // Refresh optime counter every 10 mins
+            Unlock<Eeprom>();
+            if(IsUnlocked<Eeprom>()) {
+                moduleList::SaveState(); // Save to EEPROM
+                Lock<Eeprom>();
+            }
         }
         if(cmd) {
             switch(cmd) {
