@@ -12,6 +12,7 @@ StaticLibrary {
         FileInfo.joinPaths(sourceDirectory, "common"),
         FileInfo.joinPaths(sourceDirectory, "drivers"),
         FileInfo.joinPaths(sourceDirectory, "wake"),
+        FileInfo.joinPaths(sourceDirectory, "resources"),
     ]
 
     Group {
