@@ -230,7 +230,7 @@ struct SequenceOf
 };
 
 template<typename First, uint8_t Seq>
-struct Pinlist<First, SequenceOf<Seq>> : GpioBase
+struct Pinlist<First, SequenceOf<Seq> > : GpioBase
 {
     typedef typename First::Port Port;
     enum
