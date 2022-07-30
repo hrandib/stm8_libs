@@ -23,7 +23,6 @@
 #pragma once
 
 // platform specific delay loop implementation
-#include "clock.h"
 #include <stdint.h>
 
 namespace Mcudrv {

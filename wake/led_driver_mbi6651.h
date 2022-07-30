@@ -376,11 +376,11 @@ namespace Mcudrv
 	};
 
 	template<typename Features>
-	LedDriver<Features>::state_t LedDriver<Features>::state_nv;
+    typename LedDriver<Features>::state_t LedDriver<Features>::state_nv;
 	template<typename Features>
-	LedDriver<Features>::state_t LedDriver<Features>::curState = state_nv;
+    typename LedDriver<Features>::state_t LedDriver<Features>::curState = state_nv;
 	template<typename Features>
-	LedDriver<Features>::state_t LedDriver<Features>::onState;
+    typename LedDriver<Features>::state_t LedDriver<Features>::onState;
 	template<typename Features>
 	const typename LedDriver<Features>::state_t LedDriver<Features>::DefaultState = {100, 100};
 

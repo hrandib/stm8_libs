@@ -22,11 +22,9 @@
 
 #pragma once
 #include "circularBuffer.h"
-#include "clock.h"
 #include "gpio.h"
 #include "stm8s.h"
 #include "string_utils.h"
-#include "timers.h"
 
 namespace Mcudrv {
 

@@ -24,11 +24,9 @@
 #ifndef I2C_H
 #define I2C_H
 
-#include "clock.h"
 #include "delay.h"
 #include "gpio.h"
 #include "stm8s.h"
-#include "timers.h"
 
 //#define FAST_I2C_MODE
 

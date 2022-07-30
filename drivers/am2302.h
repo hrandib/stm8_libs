@@ -112,7 +112,7 @@ public:
     {
         Exti::SetExtIntMode<Pin::Port, Exti::RisingFallingEdge>();
         //			Pin::template SetConfig<GpioBase::In_Pullup_int>();
-        HardTimer::Init<T4::Div8, T4::ARPE>(); // clock 4us
+        HardTimer::Init(T4::Div_8, T4::ARPE); // clock 4us
         HardTimer::EnableInterrupt();
         HardTimer::Enable();
         Pin::Clear();
