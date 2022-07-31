@@ -84,10 +84,10 @@ public:
     static void SetBacklight(bool isOn)
     {
         if(isOn) {
-            state |= (1U << POS_BL);
+            state &= ~(1U << POS_BL);
         }
         else {
-            state &= ~(1U << POS_BL);
+            state |= (1U << POS_BL);
         }
         Twi::Write(ADDR, state);
     }
