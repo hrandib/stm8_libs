@@ -231,7 +231,7 @@ public:
     }
 };
 
-template<typename Twi = SoftTwi<>>
+template<typename Twi = SoftTwi<> >
 class Lm75
 {
 public:
@@ -253,7 +253,7 @@ public:
     }
 };
 
-template<typename Twi = SoftTwi<>>
+template<typename Twi = SoftTwi<> >
 class Eeprom24c
 {
 public:
@@ -263,7 +263,7 @@ public:
     };
 };
 
-template<typename Twi = SoftTwi<>>
+template<typename Twi = SoftTwi<> >
 class Bh1750
 {
 public:
