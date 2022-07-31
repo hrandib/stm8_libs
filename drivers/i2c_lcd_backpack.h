@@ -74,7 +74,7 @@ public:
         { }
         static void Clear()
         {
-            Twi::Write(ADDR, ~(1U << POS_E) & state);
+            Twi::Write(ADDR, state);
         }
         static void Set()
         {

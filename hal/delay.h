@@ -80,6 +80,7 @@ inline void DelayCycle8(uint8_t delayLoops)
 //  			}
 // 	}
 
+#pragma diag_suppress = Pe111
 #pragma inline = forced
 template<unsigned long us, unsigned long CpuFreq = F_CPU>
 void delay_us()

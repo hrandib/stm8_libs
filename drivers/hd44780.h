@@ -206,6 +206,6 @@ static void LcdPuts(const T* s)
         LcdPutch<Lcd, T, x_dim, y_dim>(*s++);
 }
 
-}
+} // Mcudrv
 
 #endif // HD44780_H
