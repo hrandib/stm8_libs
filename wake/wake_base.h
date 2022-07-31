@@ -228,8 +228,11 @@ struct NullModule
     };
     static void Init()
     { }
-    static void Process()
-    { }
+    // Module implementation returns true if the received command must be handled by it
+    static bool Process()
+    {
+        return false;
+    }
     static void SaveState()
     { }
     static void On()
@@ -268,14 +271,10 @@ struct ModuleList
         Module5::Init();
         Module6::Init();
     }
-    static void Process()
+    static bool Process()
     {
-        Module1::Process();
-        Module2::Process();
-        Module3::Process();
-        Module4::Process();
-        Module5::Process();
-        Module6::Process();
+        return Module1::Process() | Module2::Process() | Module3::Process() | Module4::Process() | Module5::Process() |
+               Module6::Process();
     }
     static uint8_t GetDeviceFeatures(uint8_t deviceMask)
     {
@@ -348,8 +347,6 @@ public:
 protected:
     static volatile Packet pdata;
     static volatile uint8_t cmd;
-    // Each modules will set the respective flag if it NOT processed active command
-    static volatile uint8_t processedMask;
 };
 
 template<typename moduleList = ModuleList<NullModule>,
@@ -582,10 +579,8 @@ public:
                     break;
 #endif
                 default:
-                    moduleList::Process();
                     // Check if command not processed in modules
-                    if(processedMask == moduleList::deviceMask) {
-                        processedMask = 0;
+                    if(!moduleList::Process()) {
                         pdata.buf[0] = Wk::ERR_NI;
                         pdata.n = 1;
                     }

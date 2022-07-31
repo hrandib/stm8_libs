@@ -27,7 +27,6 @@ namespace Wk {
 
 volatile WakeData::Packet WakeData::pdata;
 volatile uint8_t WakeData::cmd;
-volatile uint8_t WakeData::processedMask;
 
 } // Wk
 } // Mcudrv
