@@ -180,6 +180,12 @@ public:
         while(*s)
             Putch(*s++);
     }
+    template<typename T>
+    static void Putbuf(const T* s, uint8_t len)
+    {
+        while(len--)
+            Putch(*s++);
+    }
 };
 
 template<typename Lcd, typename T, uint8_t x_dim = 16, uint8_t y_dim = 2>
