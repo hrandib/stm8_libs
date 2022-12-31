@@ -31,6 +31,7 @@
 #include "flash.h"
 #include "gpio.h"
 #include "itc.h"
+#include "iwdg.h"
 #include "timers.h"
 #include "uart.h"
 
@@ -441,13 +442,12 @@ public:
         }
         moduleList::Init();
         OpTime::Init();
-        Wdg::Iwdg::Enable(Wdg::P_1s);
         Uart::EnableInterrupt(IrqDefault);
     }
     static void Process()
     {
         using namespace Mem;
-        Wdg::Iwdg::Refresh();
+        Mcudrv::Iwdg::Refresh();
         if(OpTime::GetTenMinitesFlag() && !IsActive()) {
             OpTime::ClearTenMinutesFlag();
             OpTime::CountInc(); // Refresh optime counter every 10 mins

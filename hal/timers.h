@@ -765,36 +765,4 @@ namespace Mcudrv
 			}
 		};
 	} //T4
-
-	namespace Wdg
-	{
-		enum Period
-		{
-			P_16ms,
-			P_32ms,
-			P_64ms,
-			P_128ms,
-			P_256ms,
-			P_512ms,
-			P_1s
-		};
-		
-		class Iwdg
-		{
-		public:
-			FORCEINLINE
-			static void Enable(const Period period)
-			{
-				IWDG->KR = 0xCC;
-				IWDG->KR = 0x55;
-				IWDG->RLR = 0xFF;
-				IWDG->PR = period;
-			}
-			FORCEINLINE
-			static void Refresh()
-			{
-				IWDG->KR = 0xAA;
-			}
-		};
-	}
 }
