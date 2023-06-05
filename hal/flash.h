@@ -107,5 +107,18 @@ FORCEINLINE inline void SetBlockProgramming()
     FLASH->NCR2 = ~FLASH_NCR2_NPRG;
 }
 
-}
-}
+template<MemType type = Eeprom>
+struct MemGuard
+{
+    MemGuard()
+    {
+        Unlock<type>();
+    }
+    ~MemGuard()
+    {
+        Lock<type>();
+    }
+};
+
+} // Mem
+} // Mcudrv
