@@ -243,7 +243,7 @@ public:
     {
         int16_t result;
         bool success = Twi::Read(BaseAddr | devAddr, (uint8_t*)&result, 2);
-        return success ? result / 128 : 0xFFFF;
+        return success ? result >> 7 : INT16_MIN;
     }
 
     static bool Detect(uint8_t devAddr)

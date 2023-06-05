@@ -313,13 +313,18 @@ public:
     }
     static int16_t Get(uint8_t index)
     {
+        uint8_t buf[9];
         if(Ow::Reset()) {
             Ow::MatchRom(romArr[index]);
             Ow::Write(CmdRead);
-            return Ow::Read() | Ow::Read() << 8;
+            Ow::Read(buf, sizeof(buf));
+            Crc::Crc8 crc;
+            crc.Reset();
+            crc(buf, sizeof(buf));
+            return !crc.GetResult() ? buf[0] | buf[1] << 8 : INT16_MIN;
         }
         else
-            return 0xFFFF;
+            return INT16_MIN;
     }
     static int16_t* Get(int16_t* valArray)
     {
