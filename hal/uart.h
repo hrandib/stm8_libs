@@ -31,11 +31,12 @@ namespace Mcudrv {
 namespace Uarts {
 typedef uint32_t BaudRate;
 
-enum Cfg {
-    //		---=== UART CR1 ===---
+enum Cfg
+{
+    // ---=== UART CR1 ===---
 
-    //		ParityIntEnable = UART1_CR1_PIEN,
-    //		ParityControl = UART1_CR1_PCEN,
+    // ParityIntEnable = UART1_CR1_PIEN,
+    // ParityControl = UART1_CR1_PCEN,
     WakeIdle = 0,
     WakeAddressMark = UART1_CR1_WAKE,
 
@@ -50,16 +51,16 @@ enum Cfg {
     EvenParity = 0,
     OddParity = UART1_CR1_PS,
 
-    //		---=== UART CR2 ===---
+    // ---=== UART CR2 ===---
 
     RxEnable = UART1_CR2_REN << 8,
     TxEnable = UART1_CR2_TEN << 8,
     RxTxEnable = RxEnable | TxEnable,
 
-    //		RxWakeup = UART1_CR2_RWU,
-    //		SendBreak = UART1_CR2_SBK,
+    // RxWakeup = UART1_CR2_RWU,
+    // SendBreak = UART1_CR2_SBK,
 
-    //		---=== UART CR3 ===---
+    // ---=== UART CR3 ===---
 
     LinEnable = static_cast<uint32_t>(UART1_CR3_LINEN) << 16UL,
     OneStopBit = 0,
@@ -70,12 +71,13 @@ enum Cfg {
     // Should not be written while the transmitter is enabled
     CPOL_0_Idle = 0,                                             // Clock Polarity - 0 when Idle
     CPOL_1_Idle = static_cast<uint32_t>(UART1_CR3_CPOL) << 16UL, // Clock Polarity - 1 when Idle
-    CPHA_0 = 0, // The first clock transition is the first data capture edge
-    CPHA_1 = static_cast<uint32_t>(UART1_CR3_CPHA)
-             << 16UL, // The second clock transition is the first data capture edge
+    // The first clock transition is the first data capture edge
+    CPHA_0 = 0,
+    // The second clock transition is the first data capture edge
+    CPHA_1 = static_cast<uint32_t>(UART1_CR3_CPHA) << 16UL,
     LastBitPulseOn = static_cast<uint32_t>(UART1_CR3_LBCL) << 16UL,
 
-    //		---=== UART CR5 ====---
+    // ---=== UART CR5 ====---
 
     SingleWireMode = static_cast<uint32_t>(UART1_CR5_HDSEL) << 24UL,
 
@@ -83,27 +85,27 @@ enum Cfg {
 };
 
 enum Events
-	{
-		EvParityErr = UART1_SR_PE,
-		EvFrameErr = UART1_SR_FE,
-		EvNoiseErr = UART1_SR_NF,
-		EvOverrunErr = UART1_SR_OR,
-		EvIdle = UART1_SR_IDLE,
-		EvRxne = UART1_SR_RXNE,
-		EvTxComplete = UART1_SR_TC,
-		EvTxEmpty = UART1_SR_TXE
-	};
+{
+    EvParityErr = UART1_SR_PE,
+    EvFrameErr = UART1_SR_FE,
+    EvNoiseErr = UART1_SR_NF,
+    EvOverrunErr = UART1_SR_OR,
+    EvIdle = UART1_SR_IDLE,
+    EvRxne = UART1_SR_RXNE,
+    EvTxComplete = UART1_SR_TC,
+    EvTxEmpty = UART1_SR_TXE
+};
 
 enum Irqs
-	{
-		IrqParityEnable = UART1_CR1_PIEN,
-//		---================---			
-		IrqTxEmpty = UART1_CR2_TIEN,
-		IrqTxComplete = UART1_CR2_TCIEN,
-		IrqRxne = UART1_CR2_RIEN,
-		IrqIdle = UART1_CR2_ILIEN,
-		IrqDefault = UART1_CR2_TCIEN | UART1_CR2_RIEN	//TX complete and RX not empty
-	};
+{
+    IrqParityEnable = UART1_CR1_PIEN,
+    // ---================---
+    IrqTxEmpty = UART1_CR2_TIEN,
+    IrqTxComplete = UART1_CR2_TCIEN,
+    IrqRxne = UART1_CR2_RIEN,
+    IrqIdle = UART1_CR2_ILIEN,
+    IrqDefault = UART1_CR2_TCIEN | UART1_CR2_RIEN // TX complete and RX not empty
+};
 namespace Internal {
 template<uint16_t base>
 struct Base;
@@ -145,7 +147,10 @@ public:
     template<Cfg config, BaudRate baud = 9600UL>
     static void Init()
     {
-        enum { Div = F_CPU / baud };
+        enum
+        {
+            Div = F_CPU / baud
+        };
         static_assert(Div <= __UINT16_T_MAX__ && Div > 0x0F, "UART divider not in range 16...65535");
         static_assert(!(BaseAddr == UART2_BaseAddress && (static_cast<uint32_t>(config) >> 24) & UART1_CR5_HDSEL),
                       "Single wire Halfduplex mode not available for UART2");
@@ -248,7 +253,11 @@ protected:
     static CircularBuffer<TxBufSize> txbuf_;
     static CircularBuffer<RxBufSize> rxbuf_;
 public:
-    enum { TXBUFSIZE = TxBufSize, RXBUFSIZE = RxBufSize };
+    enum
+    {
+        TXBUFSIZE = TxBufSize,
+        RXBUFSIZE = RxBufSize
+    };
 
     FORCEINLINE
     template<Cfg config, BaudRate baud = 9600UL>
@@ -315,6 +324,12 @@ public:
     static bool Getch(uint8_t& c)
     {
         return rxbuf_.Read(c);
+    }
+
+    FORCEINLINE
+    static void Flush()
+    {
+        rxbuf_.Clear();
     }
 
 #if defined(STM8S103) || defined(STM8S003)
