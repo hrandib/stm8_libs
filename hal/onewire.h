@@ -334,9 +334,9 @@ public:
         }
         return valArray;
     }
-    static const Descriptor* GetId(uint8_t index)
+    static const Descriptor& GetId(uint8_t index)
     {
-        return *romArr[index];
+        return romArr[index];
     }
     template<typename Ostream>
     static void PrintID()
