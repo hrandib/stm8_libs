@@ -277,8 +277,9 @@ public:
 template<typename Ow, uint8_t devMaxNumber>
 class Ds18b20
 {
-private:
+public:
     typedef typename Ow::Descriptor Descriptor;
+private:
     static Descriptor romArr[devMaxNumber];
     static uint8_t devNumber;
     enum InstructionSet
