@@ -112,21 +112,26 @@ public:
     template<uint8_t mask, Cfg cfg>
     static void SetConfig()
     {
-        if(cfg & 0x01) {
-            GetBase()->CR2 |= mask;
-        }
-        else
-            GetBase()->CR2 &= ~mask;
-        if((cfg >> 1) & 0x01) {
-            GetBase()->CR1 |= mask;
-        }
-        else
-            GetBase()->CR1 &= ~mask;
         if((cfg >> 2) & 0x01) {
             GetBase()->DDR |= mask;
         }
-        else
+        else {
             GetBase()->DDR &= ~mask;
+        }
+
+        if(cfg & 0x01) {
+            GetBase()->CR2 |= mask;
+        }
+        else {
+            GetBase()->CR2 &= ~mask;
+        }
+
+        if((cfg >> 1) & 0x01) {
+            GetBase()->CR1 |= mask;
+        }
+        else {
+            GetBase()->CR1 &= ~mask;
+        }
     }
 
 #pragma inline = forced
